@@ -7,6 +7,7 @@ import { Announcement } from "@/models/Announcement";
 import { HeroBanner } from "@/models/HeroBanner";
 import { Reel } from "@/models/Reel";
 import { InstagramPost } from "@/models/InstagramPost";
+import { MarqueeItem } from "@/models/MarqueeItem";
 
 export type ContentState = { error?: string; ok?: string };
 
@@ -28,7 +29,8 @@ function num(form: FormData, key: string): number {
 }
 
 function bool(form: FormData, key: string): boolean {
-  return form.get(key) === "on";
+  const val = form.get(key);
+  return val === "on" || val === "true" || val === "1";
 }
 
 async function guard(): Promise<string | null> {
@@ -99,6 +101,19 @@ export async function saveHeroBanner(
   return { ok: id ? "Banner updated." : "Banner added." };
 }
 
+export async function reorderHeroBanners(id1: string, pos1: number, id2: string, pos2: number) {
+  const problem = await guard();
+  if (problem) return;
+
+  await Promise.all([
+    HeroBanner.findByIdAndUpdate(id1, { position: pos2 }),
+    HeroBanner.findByIdAndUpdate(id2, { position: pos1 }),
+  ]);
+
+  revalidateStorefront();
+  revalidatePath("/admin/content/banners");
+}
+
 /* ---------------- Reels ---------------- */
 
 export async function saveReel(
@@ -159,10 +174,36 @@ export async function saveInstagramPost(
   return { ok: id ? "Post updated." : "Post added." };
 }
 
+/* ---------------- Marquee / Ticker ---------------- */
+
+export async function saveMarqueeItem(
+  _prev: ContentState,
+  form: FormData,
+): Promise<ContentState> {
+  const problem = await guard();
+  if (problem) return { error: problem };
+
+  const text = str(form, "text");
+  if (text.length < 1) return { error: "Enter the ticker text." };
+
+  const doc = {
+    text,
+    active: bool(form, "active"),
+  };
+
+  const id = str(form, "id");
+  if (id) await MarqueeItem.findByIdAndUpdate(id, doc);
+  else await MarqueeItem.create(doc);
+
+  revalidateStorefront();
+  revalidatePath("/admin/content/marquee");
+  return { ok: id ? "Ticker phrase updated." : "Ticker phrase added." };
+}
+
 /* ---------------- Delete ---------------- */
 
 /**
- * A switch rather than a lookup map: the four models have different document
+ * A switch rather than a lookup map: the models have different document
  * types, so indexing a map of them gives TypeScript a union whose
  * findByIdAndDelete overloads cannot be reconciled.
  */
@@ -181,6 +222,9 @@ export async function deleteContent(form: FormData) {
       break;
     case "banner":
       await HeroBanner.findByIdAndDelete(id);
+      break;
+    case "marquee":
+      await MarqueeItem.findByIdAndDelete(id);
       break;
     case "reel":
       await Reel.findByIdAndDelete(id);

@@ -24,6 +24,7 @@ export type AdminProduct = {
   title: string;
   vendor: string;
   description: string;
+  bodyHtml: string;
   sku: string;
   /** Paise, as stored. */
   price: number;
@@ -46,6 +47,7 @@ type LeanProduct = {
   title: string;
   vendor?: string;
   description?: string;
+  bodyHtml?: string;
   sku?: string;
   price: number;
   compareAtPrice?: number | null;
@@ -68,6 +70,7 @@ function toAdminProduct(row: LeanProduct): AdminProduct {
     title: row.title,
     vendor: row.vendor ?? "HUEGLAM",
     description: row.description ?? "",
+    bodyHtml: row.bodyHtml ?? "",
     sku: row.sku ?? "",
     price: row.price,
     compareAtPrice: row.compareAtPrice ?? null,

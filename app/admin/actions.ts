@@ -65,11 +65,13 @@ export async function loginAction(
 
   await connectDB();
   const user = await AdminUser.findOne({ email }).lean();
+  console.log("[LOGIN DEBUG] email:", email, "userFound:", !!user);
 
   const valid = await bcrypt.compare(
     parsed.data.password,
     user?.passwordHash ?? DUMMY_HASH,
   );
+  console.log("[LOGIN DEBUG] passwordValid:", valid);
 
   if (!user || !valid) {
     await recordFailure([emailKey, ipKey]);

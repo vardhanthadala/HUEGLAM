@@ -4,6 +4,7 @@ import { Announcement } from "@/models/Announcement";
 import { HeroBanner } from "@/models/HeroBanner";
 import { Reel } from "@/models/Reel";
 import { InstagramPost } from "@/models/InstagramPost";
+import { MarqueeItem } from "@/models/MarqueeItem";
 
 /**
  * Editable homepage content, read from MongoDB.
@@ -77,7 +78,7 @@ async function safely<T>(label: string, read: () => Promise<T[]>): Promise<T[]> 
 export function getAnnouncements(): Promise<AnnouncementItem[]> {
   return safely("announcements", async () => {
     const rows = await Announcement.find({ active: true })
-      .sort({ position: 1, createdAt: 1 })
+      .sort({ createdAt: 1 })
       .lean();
     return rows.map((r) => ({
       id: String(r._id),
@@ -91,7 +92,7 @@ export function getAnnouncements(): Promise<AnnouncementItem[]> {
 export function getHeroSlides(): Promise<HeroSlide[]> {
   return safely("hero banners", async () => {
     const rows = await HeroBanner.find({ active: true })
-      .sort({ position: 1, createdAt: 1 })
+      .sort({ createdAt: 1 })
       .lean();
     return rows.map((r) => ({
       id: String(r._id),
@@ -130,5 +131,14 @@ export function getInstagramTiles(): Promise<InstagramItem[]> {
       permalink: r.permalink || INSTAGRAM_PROFILE,
       caption: r.caption ?? "",
     }));
+  });
+}
+
+export function getMarqueePhrases(): Promise<string[]> {
+  return safely("marquee", async () => {
+    const rows = await MarqueeItem.find({ active: true })
+      .sort({ createdAt: 1 })
+      .lean();
+    return rows.map((r) => r.text);
   });
 }

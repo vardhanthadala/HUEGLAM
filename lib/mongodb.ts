@@ -1,4 +1,14 @@
 import mongoose from "mongoose";
+import dns from "dns";
+
+// Windows local networks frequently fail on MongoDB SRV records (ECONNREFUSED querySrv).
+// Setting reliable DNS servers ensures local development connects without hiccups.
+try {
+  dns.setDefaultResultOrder("ipv4first");
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+  // Ignore in environments where setServers is restricted
+}
 
 /**
  * Cached across hot reloads so API routes do not open a new connection on

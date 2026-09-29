@@ -91,7 +91,14 @@ export default async function ProductPage({ params }: PageProps) {
         </div>
 
         <section className="mt-20">
-          <ProductTabs bodyHtml={product.bodyHtml} />
+          <ProductTabs
+            bodyHtml={product.bodyHtml}
+            description={product.description}
+            directions={product.directions}
+            activeIngredients={product.activeIngredients}
+            ingredients={product.ingredients}
+            benefits={product.benefits}
+          />
         </section>
 
         {/* Certification badges */}

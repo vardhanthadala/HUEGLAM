@@ -85,6 +85,7 @@ export async function saveProduct(
     vendor: str(form, "vendor") || "HUEGLAM",
     sku: str(form, "sku"),
     description: str(form, "description"),
+    bodyHtml: str(form, "bodyHtml"),
     price,
     inventory: Number(str(form, "inventory")) || 0,
     trackInventory: form.get("trackInventory") === "on",

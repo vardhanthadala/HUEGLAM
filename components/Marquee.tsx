@@ -6,11 +6,16 @@
  * padding on desktop (40px under 750px) and a 30s loop. The sequence is
  * duplicated so the -50% translate repeats seamlessly.
  */
-const PHRASES = ["CLEARANCE SALE", "50-60% Off"];
+const DEFAULT_PHRASES = ["CLEARANCE SALE", "50-60% Off"];
 
 const REPEATS = 5;
 
-export function Marquee() {
+export function Marquee({ phrases }: { phrases?: string[] }) {
+  if (!phrases || phrases.length === 0) {
+    return null;
+  }
+  const items = phrases;
+
   return (
     <div className="overflow-hidden bg-[#f4efe9] py-5 max-[750px]:py-10">
       <div className="marquee-track flex w-max">
@@ -18,9 +23,9 @@ export function Marquee() {
           <div key={half} className="flex shrink-0" aria-hidden={half === 1}>
             {Array.from({ length: REPEATS }, (_, i) => (
               <div key={i} className="flex shrink-0 items-center gap-24 pr-24">
-                {PHRASES.map((phrase) => (
+                {items.map((phrase, idx) => (
                   <b
-                    key={phrase}
+                    key={idx + "-" + phrase}
                     className="block text-[25px] leading-[30px] font-bold whitespace-nowrap text-black"
                   >
                     {phrase}

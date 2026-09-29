@@ -70,6 +70,14 @@ function IconGrid() {
   );
 }
 
+function IconSparkles() {
+  return (
+    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.5-6.5-2 2m-7 7-2 2m0-11 2 2m7 7 2 2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconExternal() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -99,6 +107,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/content/announcements", label: "Announcements", Icon: IconMegaphone },
       { href: "/admin/content/banners", label: "Hero banners", Icon: IconBanner },
+      { href: "/admin/content/marquee", label: "Ticker strip", Icon: IconSparkles },
       { href: "/admin/content/reels", label: "Reels", Icon: IconReel },
       { href: "/admin/content/instagram", label: "Instagram", Icon: IconGrid },
     ],

@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 
 /**
- * A path input paired with an uploader. The value is always a plain path or
- * URL, so content can also be pointed at an existing asset without uploading.
+ * Modern file upload zone with preview and remove button.
+ * Enforces file upload rather than typing raw URLs.
  */
 export function MediaField({
   name,
@@ -13,6 +13,8 @@ export function MediaField({
   accept = "image/*",
   required = false,
   hint,
+  uploadOnly = false,
+  aspect = "aspect-[3/1]",
 }: {
   name: string;
   label: string;
@@ -20,10 +22,13 @@ export function MediaField({
   accept?: string;
   required?: boolean;
   hint?: string;
+  uploadOnly?: boolean;
+  aspect?: string;
 }) {
   const [value, setValue] = useState(defaultValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function upload(file: File) {
@@ -44,6 +49,100 @@ export function MediaField({
   }
 
   const isVideo = /\.(mp4|webm)$/i.test(value);
+
+  if (uploadOnly) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[0.8125rem] font-medium text-ink">{label}</span>
+
+        {/* Hidden input to hold the uploaded file path for form submission */}
+        <input type="hidden" name={name} value={value} required={required} />
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+            e.target.value = "";
+          }}
+        />
+
+        {value ? (
+          <div className="relative group overflow-hidden rounded-xl border border-line bg-ground-alt p-2">
+            <div className={`relative ${aspect} w-full overflow-hidden rounded-lg bg-black/5`}>
+              {isVideo ? (
+                <video src={value} className="h-full w-full object-cover" muted controls />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={value} alt="" className="h-full w-full object-cover" />
+              )}
+            </div>
+            <div className="mt-2 flex items-center justify-between px-1">
+              <span className="text-[11px] text-ink-muted truncate max-w-[200px] font-mono">
+                {value}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  disabled={busy}
+                  className="rounded border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-ground transition-colors"
+                >
+                  {busy ? "Uploading..." : "Change Image"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValue("")}
+                  className="rounded px-2 py-1 text-xs text-sale-ink hover:bg-red-50 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => inputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) void upload(file);
+            }}
+            className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+              dragOver
+                ? "border-ink bg-ground-alt/60"
+                : "border-line bg-ground-alt/30 hover:border-ink/50 hover:bg-ground-alt/50"
+            }`}
+          >
+            <div className="flex size-10 items-center justify-center rounded-full bg-white shadow-xs text-ink-muted">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-ink">
+                {busy ? "Uploading image..." : "Click or drag & drop to upload image"}
+              </p>
+              {hint && <p className="text-[11px] text-ink-faint mt-0.5">{hint}</p>}
+            </div>
+          </div>
+        )}
+
+        {error && <span className="text-[0.75rem] text-sale-ink">{error}</span>}
+      </div>
+    );
+  }
 
   return (
     <label className="flex flex-col gap-1.5">
@@ -84,12 +183,12 @@ export function MediaField({
       {error && <span className="text-[0.75rem] text-sale-ink">{error}</span>}
 
       {value && (
-        <span className="mt-1 block w-28 overflow-hidden border border-line bg-ground-alt">
+        <span className="mt-1 block max-w-md overflow-hidden rounded-lg border border-line bg-ground-alt">
           {isVideo ? (
-            <video src={value} className="h-32 w-full object-cover" muted />
+            <video src={value} className="max-h-48 w-full object-contain" muted controls />
           ) : (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={value} alt="" className="h-32 w-full object-cover" />
+            <img src={value} alt="" className="max-h-48 w-full object-contain" />
           )}
         </span>
       )}

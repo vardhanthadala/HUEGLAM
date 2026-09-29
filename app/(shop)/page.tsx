@@ -5,24 +5,25 @@ import { Marquee } from "@/components/Marquee";
 import { ProductCarousel } from "@/components/ProductCarousel";
 import { ReelsCarousel } from "@/components/ReelsCarousel";
 import { InstagramCarousel } from "@/components/InstagramCarousel";
-import { getHeroSlides, getReels, getInstagramTiles } from "@/lib/content";
+import { getHeroSlides, getReels, getInstagramTiles, getMarqueePhrases } from "@/lib/content";
 import { getPublishedProducts } from "@/lib/queries";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [products, heroSlides, reels, instagramPosts] = await Promise.all([
+  const [products, heroSlides, reels, instagramPosts, marqueePhrases] = await Promise.all([
     getPublishedProducts(),
     getHeroSlides(),
     getReels(),
     getInstagramTiles(),
+    getMarqueePhrases(),
   ]);
 
   return (
     <>
       <HeroSlideshow slides={heroSlides} />
 
-      <Marquee />
+      <Marquee phrases={marqueePhrases} />
 
       {/* Intro */}
       <section className="mx-auto max-w-[1600px] px-gutter py-12">
@@ -75,7 +76,18 @@ export default async function HomePage() {
       {/* Shoppable video reels. The whole band goes when there are none, so an
           emptied rail does not leave a gap. */}
       {reels.length > 0 && (
-        <section className="mx-auto max-w-[1200px] px-gutter pb-16">
+        <section className="mx-auto max-w-[1200px] px-gutter py-12 md:py-16">
+          <div className="mx-auto mb-8 max-w-[700px] text-center">
+            <p className="mb-2 text-xs font-semibold tracking-[2.5px] uppercase text-ink-muted">
+              Real People &bull; Real Results
+            </p>
+            <h2 className="text-[28px] font-bold tracking-tight text-ink md:text-[34px]">
+              Watch &amp; Shop The Routine
+            </h2>
+            <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-body">
+              See our clean, dermatologist-tested Korean formulations in action. Tap any video to discover the routine and shop directly.
+            </p>
+          </div>
           <ReelsCarousel products={products} reels={reels} />
         </section>
       )}

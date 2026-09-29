@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "./CartProvider";
 import { formatINR } from "@/lib/money";
+import { formatDescriptionText } from "./ProductTabs";
 import type { ProductWithImages } from "@/lib/queries";
 
 export type LightboxReel = {
@@ -158,12 +159,21 @@ export function ReelLightbox({
       )}
 
       {/* Panel */}
-      <div className="relative z-10 flex max-h-[88vh] w-full max-w-[712px] overflow-hidden rounded-lg bg-white max-sm:flex-col">
+      <div
+        className={`relative z-10 flex max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl transition-all duration-300 max-sm:flex-col ${
+          product ? "w-full max-w-[760px]" : "w-auto max-w-[420px]"
+        }`}
+      >
         {/* Video */}
-        <div className="relative aspect-9/16 w-1/2 shrink-0 bg-black max-sm:w-full">
+        <div
+          className={`relative aspect-[9/16] shrink-0 bg-black ${
+            product ? "w-1/2 max-sm:w-full" : "w-full"
+          }`}
+        >
           <video
             key={reel.video}
             ref={videoRef}
+            src={reel.video}
             poster={reel.poster}
             autoPlay
             muted
@@ -228,37 +238,37 @@ export function ReelLightbox({
           </div>
         </div>
 
-        {/* Product panel */}
-        <div className="flex w-1/2 flex-col overflow-y-auto p-5 max-sm:w-full">
-          {product && (
-            <>
+        {/* Product panel (shown when a product is linked) */}
+        {product ? (
+          <div className="flex w-1/2 flex-col justify-between overflow-y-auto p-6 max-sm:w-full">
+            <div>
               <Link
                 href={"/products/" + product.handle}
                 onClick={onClose}
-                className="flex gap-3.5"
+                className="group flex gap-3.5"
               >
                 {product.images[0] && (
-                  <span className="relative size-[72px] shrink-0 overflow-hidden rounded bg-ground-alt">
+                  <span className="relative size-[76px] shrink-0 overflow-hidden rounded-xl border border-line bg-ground-alt">
                     <Image
                       src={product.images[0].src}
-                      alt=""
+                      alt={product.title}
                       fill
-                      sizes="72px"
-                      className="object-cover"
+                      sizes="76px"
+                      className="object-cover transition-transform group-hover:scale-105"
                     />
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[0.8125rem] leading-snug text-ink-soft">
+                  <span className="block text-[0.875rem] font-semibold leading-snug text-ink group-hover:text-body">
                     {product.title}
                   </span>
-                  <span className="mt-1.5 flex items-baseline gap-2">
+                  <span className="mt-2 flex items-baseline gap-2">
                     {product.compareAtPrice && (
                       <span className="text-[0.8125rem] text-ink-faint line-through">
                         {formatINR(product.compareAtPrice)}
                       </span>
                     )}
-                    <span className="text-[0.875rem] text-ink-soft">
+                    <span className="text-[0.9375rem] font-bold text-ink">
                       {formatINR(product.price)}
                     </span>
                   </span>
@@ -269,7 +279,7 @@ export function ReelLightbox({
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="flex-1 rounded bg-black py-3.5 text-[0.875rem] font-medium text-white transition-opacity hover:opacity-85"
+                  className="flex-1 rounded-xl bg-ink py-3 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 active:scale-[0.99]"
                 >
                   Add to Cart
                 </button>
@@ -277,9 +287,9 @@ export function ReelLightbox({
                   href={"/products/" + product.handle}
                   onClick={onClose}
                   aria-label="View product details"
-                  className="flex w-[52px] items-center justify-center rounded border border-line text-ink transition-colors hover:border-ink"
+                  className="flex w-[48px] items-center justify-center rounded-xl border border-line text-ink transition-colors hover:border-ink hover:bg-ground"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 11v5" strokeLinecap="round" />
                     <circle cx="12" cy="8" r="0.9" fill="currentColor" stroke="none" />
@@ -287,27 +297,45 @@ export function ReelLightbox({
                 </Link>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setDescriptionOpen((open) => !open)}
-                aria-expanded={descriptionOpen}
-                className="mt-6 flex items-center justify-between border-b border-line px-1 pb-3 text-[0.9375rem] text-ink"
-              >
-                Description
-                <span aria-hidden className="text-lg leading-none font-medium">
-                  {descriptionOpen ? "—" : "+"}
-                </span>
-              </button>
+              {/* Collapsible description */}
+              <div className="mt-6 border-t border-line pt-4">
+                <button
+                  type="button"
+                  onClick={() => setDescriptionOpen((open) => !open)}
+                  aria-expanded={descriptionOpen}
+                  className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-ink"
+                >
+                  <span>Description</span>
+                  <span aria-hidden className="text-base font-bold text-ink-muted">
+                    {descriptionOpen ? "—" : "+"}
+                  </span>
+                </button>
 
-              {descriptionOpen && (
-                <div
-                  className="rte mt-4 rounded border border-line p-4 text-[0.8125rem]"
-                  dangerouslySetInnerHTML={{ __html: product.bodyHtml }}
-                />
-              )}
-            </>
-          )}
-        </div>
+                {descriptionOpen && (
+                  <div className="mt-3 flex flex-col gap-2.5 text-xs text-body">
+                    {/* Clean short summary */}
+                    <p className="leading-relaxed text-ink/90 whitespace-pre-line">
+                      {product.description || "Premium skincare formulation crafted for visible, healthy glow."}
+                    </p>
+
+                    {/* View full product page link for full formula */}
+                    <Link
+                      href={"/products/" + product.handle}
+                      onClick={onClose}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink underline underline-offset-4 hover:opacity-75 transition-opacity pt-1"
+                    >
+                      View full ingredients &amp; directions &rarr;
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="mt-6 text-[10px] text-ink-faint">
+              Authentic Korean formulation &bull; Dermatologist-tested
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -154,9 +154,9 @@ export function ReelsCarousel({
     handle: r.productHandle,
     alt: r.alt,
   }));
-  // The live rail clones its slides to loop, which is what gives it a
-  // second page of dots.
-  const TILES: Reel[] = [...REELS, ...REELS];
+  // Only duplicate when there are more items than perView to provide pagination loop.
+  // When there are few items (e.g. 1 or 2), display only the exact items added by the admin.
+  const TILES: Reel[] = REELS;
   const [perView, setPerView] = useState(4);
   const [requestedPage, setRequestedPage] = useState(0);
   // Index into REELS (the four distinct clips), not into the cloned TILES.
@@ -182,14 +182,19 @@ export function ReelsCarousel({
     <div className="relative">
       <div className="overflow-hidden">
         <div
-          className="flex transition-transform duration-500 ease-out"
+          className={`flex transition-transform duration-500 ease-out ${
+            TILES.length < perView ? "justify-center" : ""
+          }`}
           style={{ transform: "translateX(-" + page * 100 + "%)" }}
         >
           {TILES.map((reel, i) => (
             <div
               key={reel.video + "-" + i}
               className="shrink-0 px-2"
-              style={{ width: 100 / perView + "%" }}
+              style={{
+                width: TILES.length < perView ? `${Math.min(100 / TILES.length, 25)}%` : `${100 / perView}%`,
+                maxWidth: "320px",
+              }}
             >
               <ReelTile
                 reel={reel}

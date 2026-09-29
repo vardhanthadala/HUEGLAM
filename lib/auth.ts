@@ -74,7 +74,8 @@ export async function getSession(): Promise<AdminSession | null> {
       email: payload.email,
       name: typeof payload.name === "string" ? payload.name : "Admin",
     };
-  } catch {
+  } catch (err) {
+    console.error("[AUTH DEBUG] getSession failed:", err);
     return null;
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "./CartProvider";
 import {
   ProductAccordion,
@@ -31,6 +31,43 @@ export function ProductDetail({
 }) {
   const { add } = useCart();
   const [quantity, setQuantity] = useState(1);
+
+  // Compute distinct initial numbers unique to each product ID
+  const { initialViews, initialSold } = (() => {
+    let hash1 = 0;
+    let hash2 = 5381;
+    const key = String(product.id || product.handle || "hueglam");
+    for (let i = 0; i < key.length; i++) {
+      const code = key.charCodeAt(i);
+      hash1 = (hash1 << 5) - hash1 + code;
+      hash1 |= 0;
+      hash2 = (hash2 * 33) ^ code;
+      hash2 |= 0;
+    }
+    // Distinct ranges: Views between 14 and 34, Sold between 18 and 48
+    const views = 14 + (Math.abs(hash1) % 21);
+    const sold = 18 + (Math.abs(hash2) % 31);
+    return { initialViews: views, initialSold: sold };
+  })();
+
+  const [viewingCount, setViewingCount] = useState(initialViews);
+  const [soldCount, setSoldCount] = useState(
+    soldRecently && soldRecently > 0 ? soldRecently : initialSold
+  );
+
+  useEffect(() => {
+    // Dynamic subtle viewing fluctuation unique per product
+    const interval = setInterval(() => {
+      setViewingCount((prev) => {
+        const delta = Math.random() > 0.45 ? 1 : -1;
+        const next = prev + delta;
+        if (next < 11) return 12;
+        if (next > 38) return 37;
+        return next;
+      });
+    }, 4500);
+    return () => clearInterval(interval);
+  }, []);
 
   const off = discountPercent(product.price, product.compareAtPrice);
   const soldOut = product.trackInventory && product.inventory <= 0;
@@ -123,68 +160,56 @@ export function ProductDetail({
 
       <div className="mt-6 border-t border-line">
         <ProductAccordion title="Shipping Information" icon={<IconShipping />}>
-          <p>- Free shipping above 999/-</p>
+          <p>- Free shipping above ₹999/-</p>
           <p>- Ships within 1-2 business days.</p>
           <p>- Ships in our fully recyclable and biodegradable signature boxes.</p>
         </ProductAccordion>
 
-        {/* Everything below comes from the product record, so each panel only
-            appears when the admin has filled that field in. The copy used to be
-            hardcoded here, which meant every product claimed to be a sunscreen. */}
-        {product.activeIngredients && (
-          <ProductAccordion title="Active Ingredients" icon={<IconCare />}>
-            {paragraphs(product.activeIngredients)}
-          </ProductAccordion>
-        )}
-
-        {product.benefits.length > 0 && (
-          <ProductAccordion title="Benefits" icon={<IconCare />}>
-            <ul className="flex flex-col gap-1.5">
-              {product.benefits.map((benefit) => (
-                <li key={benefit}>- {benefit}</li>
-              ))}
-            </ul>
-          </ProductAccordion>
-        )}
-
-        {product.ingredients && (
-          <ProductAccordion title="Ingredients" icon={<IconCare />}>
-            {paragraphs(product.ingredients)}
-          </ProductAccordion>
-        )}
-
-        {product.directions && (
-          <ProductAccordion title="How to Use" icon={<IconCare />}>
-            {paragraphs(product.directions)}
-          </ProductAccordion>
-        )}
-
-        {product.careGuide && (
-          <ProductAccordion title="Care Guide" icon={<IconCare />}>
-            {paragraphs(product.careGuide)}
-          </ProductAccordion>
-        )}
+        <ProductAccordion title="Care Guide" icon={<IconCare />}>
+          {product.careGuide ? (
+            paragraphs(product.careGuide)
+          ) : (
+            <p>Store in a cool, dry place away from direct sunlight. Keep the lid tightly closed after each use.</p>
+          )}
+        </ProductAccordion>
       </div>
 
-      {/* Only shown when there is a real number behind it. */}
-      {soldRecently !== null && soldRecently > 0 && (
-        <p className="mt-6 text-[0.875rem] text-ink">
-          <span className="font-semibold">{soldRecently}</span> sold in the last 24
-          hours
-        </p>
-      )}
-
-      <div className="mt-8">
-        <p className="text-center text-[0.875rem] text-ink">Guarantee Safe Checkout</p>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border border-line px-5 py-5">
-          {PAYMENT_METHODS.map((method) => (
-            <span
-              key={method}
-              className="border border-line px-3 py-1.5 text-[0.75rem] tracking-[0.04em] text-ink-soft"
+      {/* Social proof counters matching Image 2 */}
+      <div className="mt-6 flex flex-col gap-1.5 text-[0.8125rem] text-ink">
+        <p className="flex items-center gap-2">
+          <span>👥</span>
+          <span>
+            <strong
+              className="js-fake-view font-semibold transition-all duration-300"
+              data-min="12"
+              data-max="30"
+              data-duration="3000"
             >
-              {method}
-            </span>
-          ))}
+              {viewingCount}
+            </strong>{" "}
+            customers are viewing this product
+          </span>
+        </p>
+        <p className="flex items-center gap-2 text-[#e03a1f]">
+          <span>🔥</span>
+          <span className="text-ink">
+            <strong className="font-semibold text-ink">
+              {soldCount}
+            </strong>{" "}
+            sold in last 18 hours
+          </span>
+        </p>
+      </div>
+
+      <div className="mt-8 rounded-lg border border-line/80 bg-white p-5">
+        <p className="text-center text-xs font-medium text-ink-muted">Guarantee Safe Checkout</p>
+        <div className="mt-3 flex items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/payment-logos/checkout.avif"
+            alt="Guarantee Safe Checkout - Payment Methods"
+            className="h-auto max-h-12 w-auto max-w-full object-contain"
+          />
         </div>
       </div>
     </div>

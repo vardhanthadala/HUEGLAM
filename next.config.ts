@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     // told those hosts are allowed. Only needed when INSTAGRAM_ACCESS_TOKEN
     // is set; the fallback images are local.
     remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "scontent.cdninstagram.com" },
       { protocol: "https", hostname: "**.cdninstagram.com" },
       { protocol: "https", hostname: "**.fbcdn.net" },

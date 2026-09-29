@@ -143,6 +143,14 @@ body {
 .rte strong {
   font-weight: 600;
 }
+.rte mark,
+mark {
+  background-color: #fef08a;
+  color: #1f2937;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-weight: 600;
+}
 .rte .ingredients {
   font-size: 0.75rem;
   line-height: 1.7;
