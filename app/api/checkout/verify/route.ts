@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { coupons, orderItems, orders, products } from "@/lib/db/schema";
+import { mongoConfigured } from "@/lib/mongodb";
 import { verifyPaymentSignature } from "@/lib/razorpay";
-import { sendOrderConfirmation } from "@/lib/mail";
+import { markOrderFailed, markOrderPaid } from "@/lib/fulfil-order";
 
 export const runtime = "nodejs";
 
@@ -14,8 +12,15 @@ const bodySchema = z.object({
   razorpay_signature: z.string().min(4),
 });
 
+/**
+ * The browser callback, fired when Razorpay's checkout closes successfully.
+ *
+ * This is the fast path, not the authoritative one: the webhook at
+ * /api/razorpay/webhook covers the customer who pays and then closes the tab.
+ * Both funnel into markOrderPaid, which is safe to run twice.
+ */
 export async function POST(request: Request) {
-  if (!process.env.DATABASE_URL) {
+  if (!mongoConfigured) {
     return NextResponse.json({ error: "Store is not configured." }, { status: 503 });
   }
 
@@ -26,6 +31,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payment payload." }, { status: 400 });
   }
 
+  /*
+    The signature is the only thing that proves this came from Razorpay — it is
+    computed over the order and payment ids with the key secret, which the
+    browser never sees. No session check: a customer who loses their cookie
+    between paying and returning must still have their order marked paid.
+  */
   const ok = verifyPaymentSignature({
     razorpayOrderId: payload.razorpay_order_id,
     razorpayPaymentId: payload.razorpay_payment_id,
@@ -33,89 +44,21 @@ export async function POST(request: Request) {
   });
 
   if (!ok) {
-    // Signature mismatch means the callback was not produced by Razorpay.
-    await db
-      .update(orders)
-      .set({ status: "failed", updatedAt: new Date() })
-      .where(eq(orders.razorpayOrderId, payload.razorpay_order_id));
-
-    try {
-      const { connectDB } = require("@/lib/mongodb.ts");
-      const { Order: MongoOrder } = require("@/models/Order");
-      await connectDB();
-      await MongoOrder.findOneAndUpdate(
-        { razorpayOrderId: payload.razorpay_order_id },
-        { status: "failed" }
-      );
-    } catch (err) {
-      console.error("MongoDB update failed:", err);
-    }
-
-    return NextResponse.json({ error: "Payment could not be verified." }, { status: 400 });
+    await markOrderFailed(payload.razorpay_order_id);
+    return NextResponse.json(
+      { error: "Payment could not be verified." },
+      { status: 400 },
+    );
   }
 
-  const matched = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.razorpayOrderId, payload.razorpay_order_id));
+  const result = await markOrderPaid(
+    payload.razorpay_order_id,
+    payload.razorpay_payment_id,
+  );
 
-  const order = matched[0];
-  if (!order) {
+  if (result.outcome === "missing") {
     return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
 
-  // Already processed — return success without double-decrementing stock.
-  if (order.status !== "pending") {
-    return NextResponse.json({ ok: true, orderNumber: order.orderNumber });
-  }
-
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-
-  const paid = await db
-    .update(orders)
-    .set({
-      status: "paid",
-      razorpayPaymentId: payload.razorpay_payment_id,
-      updatedAt: new Date(),
-    })
-    .where(eq(orders.id, order.id))
-    .returning();
-
-  try {
-    const { connectDB } = require("@/lib/mongodb.ts");
-    const { Order: MongoOrder } = require("@/models/Order");
-    await connectDB();
-    await MongoOrder.findOneAndUpdate(
-      { razorpayOrderId: payload.razorpay_order_id },
-      { 
-        status: "paid",
-        razorpayPaymentId: payload.razorpay_payment_id
-      }
-    );
-  } catch (err) {
-    console.error("MongoDB update failed:", err);
-  }
-
-  // Draw down stock for each line.
-  for (const item of items) {
-    if (!item.productId) continue;
-    await db
-      .update(products)
-      .set({
-        inventory: sql`GREATEST(${products.inventory} - ${item.quantity}, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(products.id, item.productId));
-  }
-
-  if (order.couponCode) {
-    await db
-      .update(coupons)
-      .set({ usageCount: sql`${coupons.usageCount} + 1` })
-      .where(eq(coupons.code, order.couponCode));
-  }
-
-  await sendOrderConfirmation(paid[0] ?? order, items);
-
-  return NextResponse.json({ ok: true, orderNumber: order.orderNumber });
+  return NextResponse.json({ ok: true, orderNumber: result.orderNumber });
 }

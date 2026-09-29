@@ -14,7 +14,7 @@ const COOKIE_NAME = "hg_customer";
 const AUDIENCE = "hueglam:customer";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
-export type CustomerSession = { id: number; email: string; name: string };
+export type CustomerSession = { id: string; email: string; name: string };
 
 function secretKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
@@ -60,7 +60,7 @@ export async function getCustomerSession(): Promise<CustomerSession | null> {
     const { payload } = await jwtVerify(token, secretKey(), {
       audience: AUDIENCE,
     });
-    if (typeof payload.id !== "number" || typeof payload.email !== "string") {
+    if (typeof payload.id !== "string" || typeof payload.email !== "string") {
       return null;
     }
     return {

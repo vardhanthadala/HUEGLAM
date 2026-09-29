@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orderItems, orders } from "@/lib/db/schema";
+import { connectDB, mongoConfigured } from "@/lib/mongodb";
+import { Order } from "@/models/Order";
 
 export const runtime = "nodejs";
 
@@ -12,7 +11,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  if (!process.env.DATABASE_URL) {
+  if (!mongoConfigured) {
     return NextResponse.json({ error: "Store is not configured." }, { status: 503 });
   }
 
@@ -26,18 +25,14 @@ export async function POST(request: Request) {
     );
   }
 
-  // Both must match, so an order number alone reveals nothing.
-  const found = await db
-    .select()
-    .from(orders)
-    .where(
-      and(
-        eq(orders.orderNumber, payload.orderNumber.toUpperCase()),
-        eq(orders.email, payload.email.toLowerCase()),
-      ),
-    );
+  await connectDB();
 
-  const order = found[0];
+  // Both must match, so an order number alone reveals nothing.
+  const order = await Order.findOne({
+    orderNumber: payload.orderNumber.toUpperCase(),
+    email: payload.email.toLowerCase(),
+  }).lean();
+
   if (!order) {
     return NextResponse.json(
       { error: "We could not find an order with those details." },
@@ -45,27 +40,25 @@ export async function POST(request: Request) {
     );
   }
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-
   return NextResponse.json({
     order: {
       orderNumber: order.orderNumber,
       status: order.status,
       total: order.total,
       createdAt: order.createdAt,
-      trackingCarrier: order.trackingCarrier,
-      trackingNumber: order.trackingNumber,
+      trackingCarrier: order.trackingCarrier ?? null,
+      trackingNumber: order.trackingNumber ?? null,
       city: order.city,
       state: order.state,
       pincode: order.pincode,
     },
-    items: items.map((i) => ({
-      id: i.id,
-      title: i.title,
-      handle: i.handle,
-      image: i.image,
-      quantity: i.quantity,
-      lineTotal: i.lineTotal,
+    items: (order.items ?? []).map((item, index) => ({
+      id: String(item._id ?? index),
+      title: item.title,
+      handle: item.handle,
+      image: item.image ?? null,
+      quantity: item.quantity,
+      lineTotal: item.lineTotal,
     })),
   });
 }

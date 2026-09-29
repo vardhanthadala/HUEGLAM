@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Keep the placeholder template, never the real values
 !.env.example
+
+# Uploaded media is content, not source
+/public/uploads/*
+!/public/uploads/.gitkeep

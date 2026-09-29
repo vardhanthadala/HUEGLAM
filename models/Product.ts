@@ -6,6 +6,12 @@ export interface IProduct extends Document {
   vendor: string;
   description: string;
   bodyHtml: string;
+  /** Structured PDP content, edited as separate fields in the admin. */
+  activeIngredients: string;
+  benefits: string[];
+  ingredients: string;
+  directions: string;
+  careGuide: string;
   sku?: string;
   price: number;
   compareAtPrice?: number;
@@ -35,6 +41,11 @@ const ProductSchema = new Schema<IProduct>(
     vendor: { type: String, required: true, default: "HUEGLAM" },
     description: { type: String, default: "" },
     bodyHtml: { type: String, default: "" },
+    activeIngredients: { type: String, default: "" },
+    benefits: { type: [String], default: [] },
+    ingredients: { type: String, default: "" },
+    directions: { type: String, default: "" },
+    careGuide: { type: String, default: "" },
     sku: { type: String },
     price: { type: Number, required: true },
     compareAtPrice: { type: Number },

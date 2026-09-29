@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { formatINR } from "./money";
-import type { Order, OrderItem } from "./db/schema";
+import type { StoreOrder, StoreOrderItem } from "./types";
 
 const apiKey = process.env.RESEND_API_KEY;
 export const mailConfigured = Boolean(apiKey);
@@ -15,7 +15,7 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function orderEmailHtml(order: Order, items: OrderItem[]): string {
+function orderEmailHtml(order: StoreOrder, items: StoreOrderItem[]): string {
   const rows = items
     .map(
       (i) =>
@@ -81,7 +81,7 @@ function orderEmailHtml(order: Order, items: OrderItem[]): string {
  * Sends the order confirmation. Never throws: a mail failure must not roll back
  * a payment that already succeeded, so problems are logged and swallowed.
  */
-export async function sendOrderConfirmation(order: Order, items: OrderItem[]) {
+export async function sendOrderConfirmation(order: StoreOrder, items: StoreOrderItem[]) {
   if (!resend) {
     console.warn("[mail] RESEND_API_KEY not set, skipping confirmation for " + order.orderNumber);
     return;

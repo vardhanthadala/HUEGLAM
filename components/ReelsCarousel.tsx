@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ReelLightbox } from "./ReelLightbox";
 import { formatINR } from "@/lib/money";
 import type { ProductWithImages } from "@/lib/queries";
+import type { ReelItem } from "@/lib/content";
 
 /**
  * Shoppable video reels, ported from the store's Reelfy section.
@@ -21,36 +22,6 @@ type Reel = {
   alt: string;
 };
 
-const REELS: Reel[] = [
-  {
-    video: "/reels/reel1.webm",
-    type: "video/webm",
-    poster: "/reels/reel1.jpg",
-    handle: "hueglam-ultimate-glow-combo",
-    alt: "Creator unboxing the HUEGLAM Ultimate Glow Combo",
-  },
-  {
-    video: "/reels/reel2.mp4",
-    type: "video/mp4",
-    poster: "/reels/reel2.jpg",
-    handle: "3-salicylic-acid-face-wash",
-    alt: "Creator demonstrating the 3% Salicylic Acid Face Wash",
-  },
-  {
-    video: "/reels/reel3.mp4",
-    type: "video/mp4",
-    poster: "/reels/reel3.jpg",
-    handle: "hueglam-ultimate-glow-combo",
-    alt: "Creator reviewing the HUEGLAM Ultimate Glow Combo",
-  },
-  {
-    video: "/reels/reel4.mp4",
-    type: "video/mp4",
-    poster: "/reels/reel4.jpg",
-    handle: "clarifying-face-serum-10-niacinamide-1-zinc",
-    alt: "Creator applying the Clarifying Face Serum",
-  },
-];
 
 function perViewFor(width: number): number {
   if (width >= 1024) return 4;
@@ -167,9 +138,25 @@ function ReelTile({
  * duplicate pass here reproduces that, and the clones cost nothing until
  * scrolled to because each tile preloads nothing.
  */
-const TILES: Reel[] = [...REELS, ...REELS];
 
-export function ReelsCarousel({ products }: { products: ProductWithImages[] }) {
+
+export function ReelsCarousel({
+  products,
+  reels,
+}: {
+  products: ProductWithImages[];
+  reels: ReelItem[];
+}) {
+  const REELS: Reel[] = reels.map((r) => ({
+    video: r.video,
+    type: r.videoType,
+    poster: r.poster,
+    handle: r.productHandle,
+    alt: r.alt,
+  }));
+  // The live rail clones its slides to loop, which is what gives it a
+  // second page of dots.
+  const TILES: Reel[] = [...REELS, ...REELS];
   const [perView, setPerView] = useState(4);
   const [requestedPage, setRequestedPage] = useState(0);
   // Index into REELS (the four distinct clips), not into the cloned TILES.
@@ -187,6 +174,9 @@ export function ReelsCarousel({ products }: { products: ProductWithImages[] }) {
 
   const step = (delta: number) =>
     setRequestedPage((page + delta + pageCount) % pageCount);
+
+  // After the hooks: with no reels saved there is no rail to draw.
+  if (REELS.length === 0) return null;
 
   return (
     <div className="relative">

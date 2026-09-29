@@ -1,6 +1,7 @@
 /**
  * Canonical HUEGLAM catalogue, ported from the Shopify store.
- * Prices are in paise. Run `npm run db:seed` to push this into Postgres.
+ * Prices are in paise. `npm run db:seed` inserts any of these whose handle is
+ * not already in MongoDB; it never overwrites a product you have since edited.
  */
 
 export type SeedImage = { src: string; alt: string; width: number; height: number };

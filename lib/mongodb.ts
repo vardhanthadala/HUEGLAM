@@ -1,35 +1,43 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env");
-}
-
 /**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
+ * Cached across hot reloads so API routes do not open a new connection on
+ * every request.
+ *
+ * The missing-env check lives inside connectDB rather than at module scope:
+ * throwing on import would crash any page that merely imports a model, even
+ * when that page has a fallback and never actually needs the database.
  */
-let cached = (global as any).mongoose;
+type MongooseCache = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
 
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
-}
+const globalForMongoose = global as typeof globalThis & {
+  mongoose?: MongooseCache;
+};
+
+const cached: MongooseCache = globalForMongoose.mongoose ?? {
+  conn: null,
+  promise: null,
+};
+globalForMongoose.mongoose = cached;
+
+/** True when a connection string is configured. */
+export const mongoConfigured = Boolean(process.env.MONGODB_URI);
 
 export async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error(
+      "MONGODB_URI is not set. Add it to .env.local before using the admin portal.",
+    );
   }
 
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
+  if (cached.conn) return cached.conn;
 
-    cached.promise = mongoose.connect(MONGODB_URI as string, opts).then((mongoose) => {
-      return mongoose;
-    });
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(uri, { bufferCommands: false });
   }
 
   try {

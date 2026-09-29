@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { coupons, orderItems, orders, products, productImages } from "@/lib/db/schema";
+import { connectDB, mongoConfigured } from "@/lib/mongodb";
+import { Product } from "@/models/Product";
+import { Coupon } from "@/models/Coupon";
+import { Order } from "@/models/Order";
 import { generateOrderNumber, priceOrder, type PricedLine } from "@/lib/pricing";
 import { getRazorpay, razorpayConfigured } from "@/lib/razorpay";
 import { getCustomerSession } from "@/lib/customer-auth";
 
 export const runtime = "nodejs";
+
+const objectId = z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "That item is no longer available");
 
 const bodySchema = z.object({
   customer: z.object({
@@ -29,7 +34,7 @@ const bodySchema = z.object({
   lines: z
     .array(
       z.object({
-        productId: z.number().int().positive(),
+        productId: objectId,
         quantity: z.number().int().min(1).max(20),
       }),
     )
@@ -67,9 +72,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!process.env.DATABASE_URL) {
+  if (!mongoConfigured) {
     return NextResponse.json(
-      { error: "Store is not configured yet. DATABASE_URL is missing." },
+      { error: "Store is not configured yet. MONGODB_URI is missing." },
       { status: 503 },
     );
   }
@@ -91,13 +96,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const ids = [...new Set(payload.lines.map((l) => l.productId))];
+  await connectDB();
 
-  // Re-read prices and stock from the database. The client's numbers are ignored.
-  const found = await db
-    .select()
-    .from(products)
-    .where(and(inArray(products.id, ids), eq(products.published, true)));
+  /*
+    Collapse repeats before doing anything else. Checking each line on its own
+    would let two lines of 20 through against 25 in stock, because each passes
+    the test individually; merging first means the check is against what the
+    order actually asks for. It also keeps one line per product on the invoice.
+  */
+  const merged = new Map<string, number>();
+  for (const line of payload.lines) {
+    merged.set(line.productId, (merged.get(line.productId) ?? 0) + line.quantity);
+  }
+
+  const ids = [...merged.keys()];
+
+  // Re-read prices and stock from the database. The client's numbers are only
+  // ever used for which product and how many.
+  const found = await Product.find({ _id: { $in: ids }, published: true }).lean();
 
   if (found.length !== ids.length) {
     return NextResponse.json(
@@ -106,16 +122,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const images = await db
-    .select()
-    .from(productImages)
-    .where(inArray(productImages.productId, ids));
+  const byId = new Map(found.map((p) => [String(p._id), p]));
 
   const priced: PricedLine[] = [];
-  for (const line of payload.lines) {
-    const product = found.find((p) => p.id === line.productId)!;
+  for (const [productId, quantity] of merged) {
+    const product = byId.get(productId)!;
 
-    if (product.trackInventory && product.inventory < line.quantity) {
+    if (product.trackInventory && product.inventory < quantity) {
       return NextResponse.json(
         {
           error:
@@ -128,129 +141,121 @@ export async function POST(request: Request) {
     }
 
     const image =
-      images
-        .filter((i) => i.productId === product.id)
-        .sort((a, b) => a.position - b.position)[0]?.src ?? null;
+      [...(product.images ?? [])].sort(
+        (a, b) => (a.position ?? 0) - (b.position ?? 0),
+      )[0]?.src ?? null;
 
     priced.push({
-      productId: product.id,
+      productId: String(product._id),
       title: product.title,
       handle: product.handle,
-      sku: product.sku,
+      sku: product.sku ?? null,
       image,
       unitPrice: product.price,
-      quantity: line.quantity,
-      lineTotal: product.price * line.quantity,
+      quantity,
+      lineTotal: product.price * quantity,
     });
   }
 
   // Resolve the coupon server-side too.
   let coupon = null;
   if (payload.couponCode) {
-    const match = await db
-      .select()
-      .from(coupons)
-      .where(eq(coupons.code, payload.couponCode.toUpperCase()));
+    const c = await Coupon.findOne({
+      code: payload.couponCode.toUpperCase(),
+    }).lean();
 
-    const c = match[0];
     const usable =
       c &&
       c.active &&
       (!c.expiresAt || c.expiresAt > new Date()) &&
-      (c.usageLimit === null || c.usageCount < c.usageLimit);
+      (c.usageLimit == null || c.usageCount < c.usageLimit);
 
     if (!usable) {
-      return NextResponse.json({ error: "That coupon code is not valid." }, { status: 400 });
+      return NextResponse.json(
+        { error: "That coupon code is not valid." },
+        { status: 400 },
+      );
     }
-    coupon = { code: c.code, type: c.type, value: c.value, minSubtotal: c.minSubtotal };
+    coupon = {
+      code: c.code,
+      type: c.type,
+      value: c.value,
+      minSubtotal: c.minSubtotal,
+    };
   }
 
   const totals = priceOrder(priced, coupon);
-  const orderNumber = generateOrderNumber();
 
   const rzp = getRazorpay();
-  const rzpOrder = await rzp.orders.create({
-    amount: totals.total,
-    currency: "INR",
-    receipt: orderNumber,
-    notes: { orderNumber, email: payload.customer.email },
-  });
 
-  const inserted = await db
-    .insert(orders)
-    .values({
-      orderNumber,
-      // Always the session's email, never the client's: orders are matched back
-      // to an account by email, so a mismatched value here would hide the order
-      // from the customer's own order history.
-      email: session.email.toLowerCase(),
-      phone: payload.customer.phone,
-      customerName: payload.customer.name,
-      addressLine1: payload.customer.addressLine1,
-      addressLine2: payload.customer.addressLine2 ?? "",
-      city: payload.customer.city,
-      state: payload.customer.state,
-      pincode: payload.customer.pincode,
-      country: "India",
-      subtotal: totals.subtotal,
-      shipping: totals.shipping,
-      discount: totals.discount,
-      total: totals.total,
-      couponCode: coupon?.code ?? null,
-      customerNote: payload.customerNote || null,
-      billingAddress: payload.billingAddress ?? null,
-      status: "pending",
-      paymentMethod: "razorpay",
-      razorpayOrderId: rzpOrder.id,
-    })
-    .returning({ id: orders.id });
+  /*
+    The order number is generated, not sequential, so a collision is possible in
+    principle. The unique index is what actually guarantees uniqueness; this
+    retries a couple of times before giving up rather than handing the customer
+    a payment sheet for an order that was never stored.
+  */
+  let orderNumber = "";
+  let saved = null;
+  let lastError: unknown = null;
 
-  // --- MONGODB INTEGRATION ---
-  try {
-    const { connectDB } = require("@/lib/mongodb.ts"); // Use require to avoid top-level import conflicts if lib/db exports differ
-    const { Order: MongoOrder } = require("@/models/Order");
-    
-    await connectDB();
-    await MongoOrder.create({
-      customer: {
-        name: payload.customer.name,
+  for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+    orderNumber = generateOrderNumber();
+
+    const rzpOrder = await rzp.orders.create({
+      amount: totals.total,
+      currency: "INR",
+      receipt: orderNumber,
+      notes: { orderNumber, email: session.email.toLowerCase() },
+    });
+
+    try {
+      saved = await Order.create({
+        orderNumber,
+        // Always the session's email, never the client's: orders are matched
+        // back to an account by email, so a mismatched value here would hide
+        // the order from the customer's own history.
         email: session.email.toLowerCase(),
+        customerId: session.id,
+        customerName: payload.customer.name,
         phone: payload.customer.phone,
         addressLine1: payload.customer.addressLine1,
-        addressLine2: payload.customer.addressLine2,
+        addressLine2: payload.customer.addressLine2 ?? "",
         city: payload.customer.city,
         state: payload.customer.state,
         pincode: payload.customer.pincode,
-      },
-      lines: payload.lines,
-      customerNote: payload.customerNote,
-      couponCode: payload.couponCode,
-      billingAddress: payload.billingAddress,
-      status: "pending_payment",
-      razorpayOrderId: rzpOrder.id,
-    });
-  } catch (err) {
-    console.error("Failed to save order to MongoDB:", err);
+        country: "India",
+        items: priced,
+        subtotal: totals.subtotal,
+        discount: totals.discount,
+        shipping: totals.shipping,
+        total: totals.total,
+        couponCode: coupon?.code ?? null,
+        customerNote: payload.customerNote || null,
+        billingAddress: payload.billingAddress ?? null,
+        status: "pending",
+        paymentMethod: "razorpay",
+        razorpayOrderId: rzpOrder.id,
+      });
+    } catch (err) {
+      lastError = err;
+      // 11000 is a duplicate key — retry with a fresh number. Anything else is
+      // a real failure and should not be retried.
+      const code = (err as { code?: number })?.code;
+      if (code !== 11000) break;
+    }
   }
-  // ---------------------------
 
-  await db.insert(orderItems).values(
-    priced.map((l) => ({
-      orderId: inserted[0].id,
-      productId: l.productId,
-      title: l.title,
-      handle: l.handle,
-      sku: l.sku,
-      image: l.image,
-      unitPrice: l.unitPrice,
-      quantity: l.quantity,
-      lineTotal: l.lineTotal,
-    })),
-  );
+  if (!saved) {
+    console.error("[checkout] could not store order:", lastError);
+    return NextResponse.json(
+      { error: "We could not start your order. Please try again." },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     orderNumber,
-    razorpayOrderId: rzpOrder.id,
+    razorpayOrderId: saved.razorpayOrderId,
     amount: totals.total,
     currency: "INR",
     keyId: process.env.RAZORPAY_KEY_ID,

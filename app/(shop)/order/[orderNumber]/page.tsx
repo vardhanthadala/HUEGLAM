@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOrderWithItems } from "@/lib/queries";
+import { getCustomerSession } from "@/lib/customer-auth";
+import { getSession } from "@/lib/auth";
 import { formatINR } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +19,28 @@ type PageProps = { params: Promise<{ orderNumber: string }> };
 export default async function OrderPage({ params }: PageProps) {
   const { orderNumber } = await params;
 
-  if (!process.env.DATABASE_URL) notFound();
-
   const result = await getOrderWithItems(orderNumber.toUpperCase());
   if (!result) notFound();
 
   const { order, items } = result;
+
+  /*
+    This page shows the full delivery address, phone and email, so it is not
+    safe to hand out to anyone holding the order number — the number appears in
+    URLs, browser history and support emails, and the random tail is only a
+    speed bump, not an access control.
+
+    Checkout requires an account, so whoever placed this order has a session:
+    gate on it. Admins can see any order. Everyone else gets a 404 rather than
+    a 403, which keeps the page from confirming that an order number exists.
+  */
+  const [customer, admin] = await Promise.all([
+    getCustomerSession(),
+    getSession(),
+  ]);
+  const isOwner =
+    customer?.email?.toLowerCase() === order.email.toLowerCase();
+  if (!isOwner && !admin) notFound();
   const paid = order.status !== "pending" && order.status !== "failed";
 
   return (

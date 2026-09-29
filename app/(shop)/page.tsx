@@ -5,20 +5,22 @@ import { Marquee } from "@/components/Marquee";
 import { ProductCarousel } from "@/components/ProductCarousel";
 import { ReelsCarousel } from "@/components/ReelsCarousel";
 import { InstagramCarousel } from "@/components/InstagramCarousel";
-import { getInstagramPosts } from "@/lib/instagram";
+import { getHeroSlides, getReels, getInstagramTiles } from "@/lib/content";
 import { getPublishedProducts } from "@/lib/queries";
 
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [products, instagramPosts] = await Promise.all([
+  const [products, heroSlides, reels, instagramPosts] = await Promise.all([
     getPublishedProducts(),
-    getInstagramPosts(6),
+    getHeroSlides(),
+    getReels(),
+    getInstagramTiles(),
   ]);
 
   return (
     <>
-      <HeroSlideshow />
+      <HeroSlideshow slides={heroSlides} />
 
       <Marquee />
 
@@ -70,10 +72,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Shoppable video reels */}
-      <section className="mx-auto max-w-[1200px] px-gutter pb-16">
-        <ReelsCarousel products={products} />
-      </section>
+      {/* Shoppable video reels. The whole band goes when there are none, so an
+          emptied rail does not leave a gap. */}
+      {reels.length > 0 && (
+        <section className="mx-auto max-w-[1200px] px-gutter pb-16">
+          <ReelsCarousel products={products} reels={reels} />
+        </section>
+      )}
 
       {/* Brand statement: grey ground, two overlapping photos on the left,
           copy in a white card on the right. */}
@@ -122,7 +127,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Instagram */}
+      {/* Instagram: heading included, so it is not left announcing nothing. */}
+      {instagramPosts.length > 0 && (
       <section className="mx-auto max-w-[1200px] px-gutter py-14">
         <p className="mb-2 text-center text-[0.875rem] tracking-[2px] uppercase text-ink-soft">
           Follow Us on Instagram
@@ -139,6 +145,7 @@ export default async function HomePage() {
         </h3>
         <InstagramCarousel posts={instagramPosts} />
       </section>
+      )}
     </>
   );
 }

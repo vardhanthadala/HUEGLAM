@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import type { ProductImage } from "@/lib/db/schema";
+import type { ProductImage } from "@/lib/types";
 
 function Arrow({ dir }: { dir: "prev" | "next" }) {
   return (
@@ -70,7 +70,7 @@ export function ProductGallery({
         <div className="no-scrollbar mt-5 flex gap-3 overflow-x-auto">
           {images.map((img, i) => (
             <button
-              key={img.id}
+              key={img.src + i}
               type="button"
               onClick={() => setActive(i)}
               aria-label={"View image " + (i + 1)}

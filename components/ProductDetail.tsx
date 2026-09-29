@@ -12,6 +12,15 @@ import type { ProductWithImages } from "@/lib/queries";
 
 const PAYMENT_METHODS = ["UPI", "Cards", "Net Banking", "Wallets", "EMI"];
 
+/** Admin fields are plain textareas, so blank lines are the paragraph breaks. */
+function paragraphs(text: string) {
+  return text
+    .split(/\n\s*\n|\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, i) => <p key={i}>{line}</p>);
+}
+
 export function ProductDetail({
   product,
   soldRecently,
@@ -119,14 +128,42 @@ export function ProductDetail({
           <p>- Ships in our fully recyclable and biodegradable signature boxes.</p>
         </ProductAccordion>
 
-        <ProductAccordion title="Care Guide" icon={<IconCare />}>
-          <p>
-            Apply the sunscreen at least fifteen to thirty minutes before going
-            outside so the formula can soak in. Ensure that you apply sunscreen to
-            all the exposed parts of your body, including the face, ears, neck, and
-            hands.
-          </p>
-        </ProductAccordion>
+        {/* Everything below comes from the product record, so each panel only
+            appears when the admin has filled that field in. The copy used to be
+            hardcoded here, which meant every product claimed to be a sunscreen. */}
+        {product.activeIngredients && (
+          <ProductAccordion title="Active Ingredients" icon={<IconCare />}>
+            {paragraphs(product.activeIngredients)}
+          </ProductAccordion>
+        )}
+
+        {product.benefits.length > 0 && (
+          <ProductAccordion title="Benefits" icon={<IconCare />}>
+            <ul className="flex flex-col gap-1.5">
+              {product.benefits.map((benefit) => (
+                <li key={benefit}>- {benefit}</li>
+              ))}
+            </ul>
+          </ProductAccordion>
+        )}
+
+        {product.ingredients && (
+          <ProductAccordion title="Ingredients" icon={<IconCare />}>
+            {paragraphs(product.ingredients)}
+          </ProductAccordion>
+        )}
+
+        {product.directions && (
+          <ProductAccordion title="How to Use" icon={<IconCare />}>
+            {paragraphs(product.directions)}
+          </ProductAccordion>
+        )}
+
+        {product.careGuide && (
+          <ProductAccordion title="Care Guide" icon={<IconCare />}>
+            {paragraphs(product.careGuide)}
+          </ProductAccordion>
+        )}
       </div>
 
       {/* Only shown when there is a real number behind it. */}

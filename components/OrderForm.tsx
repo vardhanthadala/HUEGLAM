@@ -14,7 +14,7 @@ export function OrderForm({
   trackingNumber,
   notes,
 }: {
-  id: number;
+  id: string;
   status: string;
   trackingCarrier: string;
   trackingNumber: string;
@@ -23,14 +23,15 @@ export function OrderForm({
   const [state, formAction, pending] = useActionState(updateOrderAction, initial);
 
   const field =
-    "w-full border border-line bg-ground px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink";
+    "w-full rounded-[8px] border border-[#e3e6eb] bg-white px-3 py-2 text-[0.875rem] text-ink outline-none transition-colors focus:border-[#b6bcc6]";
+  const label = "text-[0.75rem] text-[#9aa0ab]";
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="id" value={id} />
 
       <label className="flex flex-col gap-1.5">
-        <span className="eyebrow">Status</span>
+        <span className={label}>Status</span>
         <select name="status" defaultValue={status} className={field}>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -41,7 +42,7 @@ export function OrderForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="eyebrow">Carrier</span>
+        <span className={label}>Carrier</span>
         <input
           name="trackingCarrier"
           defaultValue={trackingCarrier}
@@ -51,22 +52,22 @@ export function OrderForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="eyebrow">Tracking number</span>
+        <span className={label}>Tracking number</span>
         <input name="trackingNumber" defaultValue={trackingNumber} className={field} />
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="eyebrow">Internal notes</span>
+        <span className={label}>Internal notes</span>
         <textarea name="notes" defaultValue={notes} rows={3} className={field} />
       </label>
 
       {state.error && (
-        <p role="alert" className="bg-sale px-3 py-2 text-[0.8125rem] text-sale-ink">
+        <p role="alert" className="rounded-[8px] bg-[#fdf1ee] px-3 py-2 text-[0.8125rem] text-[#9c4d33]">
           {state.error}
         </p>
       )}
       {state.ok && (
-        <p role="status" className="bg-ground-alt px-3 py-2 text-[0.8125rem] text-ink-soft">
+        <p role="status" className="rounded-[8px] bg-[#edf7f0] px-3 py-2 text-[0.8125rem] text-[#3f7a4f]">
           {state.ok}
         </p>
       )}
@@ -74,7 +75,7 @@ export function OrderForm({
       <button
         type="submit"
         disabled={pending}
-        className="mt-1 bg-ink py-3 text-[0.6875rem] font-medium tracking-[0.16em] uppercase text-ground transition-opacity hover:opacity-85 disabled:opacity-50"
+        className="mt-1 rounded-[8px] bg-ink py-2.5 text-[0.875rem] font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
       >
         {pending ? "Saving..." : "Save"}
       </button>

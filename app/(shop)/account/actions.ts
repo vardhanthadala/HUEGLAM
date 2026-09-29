@@ -1,15 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { customers } from "@/lib/db/schema";
+import { connectDB, mongoConfigured } from "@/lib/mongodb";
+import { Customer } from "@/models/Customer";
 import {
   createCustomerSession,
   destroyCustomerSession,
 } from "@/lib/customer-auth";
+import {
+  CUSTOMER_EMAIL_LIMIT,
+  CUSTOMER_IP_LIMIT,
+  clearFailures,
+  clientIp,
+  describeWait,
+  recordFailure,
+  retryAfterSeconds,
+} from "@/lib/rate-limit";
 
 export type AuthState = { error?: string; ok?: boolean };
 
@@ -30,7 +38,7 @@ const registerSchema = z.object({
 });
 
 function configured(): string | null {
-  if (!process.env.DATABASE_URL) {
+  if (!mongoConfigured) {
     return "Accounts are not available yet. The store database is not configured.";
   }
   if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 32) {
@@ -52,12 +60,24 @@ export async function customerLoginAction(
   });
   if (!parsed.success) return { error: "Enter a valid email and password." };
 
-  const found = await db
-    .select()
-    .from(customers)
-    .where(eq(customers.email, parsed.data.email.toLowerCase()));
+  const email = parsed.data.email.toLowerCase();
+  const ip = await clientIp();
+  const emailKey = "customer:email:" + email;
+  const ipKey = "customer:ip:" + ip;
 
-  const user = found[0];
+  const wait = await retryAfterSeconds([
+    { key: emailKey, limit: CUSTOMER_EMAIL_LIMIT },
+    { key: ipKey, limit: CUSTOMER_IP_LIMIT },
+  ]);
+  if (wait > 0) {
+    return {
+      error: "Too many failed attempts. Try again " + describeWait(wait) + ".",
+    };
+  }
+
+  await connectDB();
+  const user = await Customer.findOne({ email }).lean();
+
   const valid = await bcrypt.compare(
     parsed.data.password,
     user?.passwordHash ?? DUMMY_HASH,
@@ -65,11 +85,13 @@ export async function customerLoginAction(
 
   // Same message either way: never reveal whether an email is registered.
   if (!user || !valid) {
+    await recordFailure([emailKey, ipKey]);
     return { error: "Those details do not match an account." };
   }
 
+  await clearFailures([emailKey]);
   await createCustomerSession({
-    id: user.id,
+    id: String(user._id),
     email: user.email,
     name: user.name,
   });
@@ -94,23 +116,31 @@ export async function customerRegisterAction(
   }
 
   const email = parsed.data.email.toLowerCase();
-  const existing = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(eq(customers.email, email));
-
-  if (existing.length > 0) {
-    return { error: "An account with that email already exists. Try signing in." };
-  }
+  await connectDB();
 
   const passwordHash = await bcrypt.hash(parsed.data.password, BCRYPT_COST);
-  const inserted = await db
-    .insert(customers)
-    .values({ email, passwordHash, name: parsed.data.name })
-    .returning({ id: customers.id });
+
+  let created;
+  try {
+    created = await Customer.create({
+      email,
+      passwordHash,
+      name: parsed.data.name,
+    });
+  } catch (error) {
+    // The unique index on email is what actually prevents duplicates; checking
+    // first and inserting after would leave a race between the two.
+    if ((error as { code?: number })?.code === 11000) {
+      return {
+        error: "An account with that email already exists. Try signing in.",
+      };
+    }
+    console.error("[account] registration failed:", error);
+    return { error: "We could not create your account. Please try again." };
+  }
 
   await createCustomerSession({
-    id: inserted[0].id,
+    id: String(created._id),
     email,
     name: parsed.data.name,
   });

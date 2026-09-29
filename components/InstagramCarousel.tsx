@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import type { InstagramPost } from "@/lib/instagram";
+import type { InstagramItem } from "@/lib/content";
 
 /**
  * Instagram rail. The theme's config is four slides in view out of six posts,
@@ -15,7 +15,7 @@ function perViewFor(width: number): number {
   return 2;
 }
 
-export function InstagramCarousel({ posts }: { posts: InstagramPost[] }) {
+export function InstagramCarousel({ posts }: { posts: InstagramItem[] }) {
   const [perView, setPerView] = useState(4);
   const [requestedPage, setRequestedPage] = useState(0);
 

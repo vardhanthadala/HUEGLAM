@@ -10,7 +10,7 @@ export const FREE_SHIPPING_THRESHOLD = Number(
 export const SHIPPING_FLAT_RATE = Number(process.env.SHIPPING_FLAT_RATE ?? 4900);
 
 export type PricedLine = {
-  productId: number;
+  productId: string;
   title: string;
   handle: string;
   sku: string | null;

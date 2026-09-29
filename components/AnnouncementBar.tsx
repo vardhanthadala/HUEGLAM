@@ -2,29 +2,39 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import type { AnnouncementItem } from "@/lib/content";
 
 /**
  * The 40px black bar above the header. On the live site it is a slick carousel
  * with prev/next arrows, so the messages live in an array here.
+ *
+ * There is deliberately no built-in message list: this bar used to fall back to
+ * a hardcoded "CLEARANCE SALE" line, which meant deleting every announcement in
+ * the admin left the site still advertising a sale that had ended. With nothing
+ * to show, the bar renders nothing.
  */
-const MESSAGES = [
-  { text: "*CLEARANCE SALE 50-60% off.*", ctaLabel: "Shop Now", ctaHref: "/collections/all" },
-  { text: "Limited Time offer.", ctaLabel: "Shop Now", ctaHref: "/collections/all" },
-];
-
-export function AnnouncementBar() {
+export function AnnouncementBar({
+  messages,
+}: {
+  messages: AnnouncementItem[];
+}) {
   const [index, setIndex] = useState(0);
-  const message = MESSAGES[index];
+  const count = messages.length;
 
   const step = (delta: number) =>
-    setIndex((i) => (i + delta + MESSAGES.length) % MESSAGES.length);
+    setIndex((i) => (i + delta + (count || 1)) % (count || 1));
 
   useEffect(() => {
+    if (count < 2) return;
     const timer = setInterval(() => {
-      setIndex((i) => (i + 1) % MESSAGES.length);
+      setIndex((i) => (i + 1) % count);
     }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [count]);
+
+  // After the hooks, never before.
+  if (count === 0) return null;
+  const message = messages[Math.min(index, count - 1)];
 
   return (
     <div className="announcement-slide relative flex h-10 w-full items-center justify-center bg-black px-12 text-white">

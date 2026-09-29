@@ -1,11 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { orderItems, orders } from "@/lib/db/schema";
-import { AdminShell } from "@/components/AdminShell";
+import { getOrderById } from "@/lib/queries";
+import { AdminShell, Panel } from "@/components/AdminShell";
 import { OrderForm } from "@/components/OrderForm";
 import { formatINR } from "@/lib/money";
 
@@ -17,91 +15,118 @@ export default async function AdminOrderPage({ params }: PageProps) {
   const session = await requireSession();
   const { id } = await params;
 
-  const orderId = Number(id);
-  if (!Number.isInteger(orderId)) notFound();
-
-  const found = await db.select().from(orders).where(eq(orders.id, orderId));
-  const order = found[0];
+  const order = await getOrderById(id);
   if (!order) notFound();
 
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+  const paid = ["paid", "shipped", "delivered"].includes(order.status);
 
   return (
-    <AdminShell session={session} active="/admin">
+    <AdminShell
+      session={session}
+      active="/admin/orders"
+      title={order.orderNumber}
+      description={order.createdAt.toLocaleString("en-IN")}
+      actions={
+        <span
+          className={
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] " +
+            (paid ? "bg-[#edf7f0] text-[#3f7a4f]" : "bg-[#f1f2f6] text-[#6b7280]")
+          }
+        >
+          <span
+            className={
+              "size-1.5 rounded-full " + (paid ? "bg-[#5a8a63]" : "bg-[#b6bcc6]")
+            }
+          />
+          {order.status}
+        </span>
+      }
+    >
       <Link
-        href="/admin"
-        className="text-[0.6875rem] tracking-[0.08em] uppercase text-ink-soft hover:text-ink"
+        href="/admin/orders"
+        className="text-[0.8125rem] text-[#6b7280] transition-colors hover:text-ink"
       >
         &larr; All orders
       </Link>
 
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h1 className="text-xl font-light tracking-tight">{order.orderNumber}</h1>
-        <span className="text-[0.75rem] text-ink-faint">
-          {order.createdAt.toLocaleString("en-IN")}
-        </span>
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         {/* Items and totals */}
-        <section className="border border-line bg-ground">
-          <h2 className="eyebrow border-b border-line px-5 py-3">Items</h2>
-          <ul className="divide-y divide-line px-5">
-            {items.map((item) => (
-              <li key={item.id} className="flex gap-4 py-4">
-                <div className="relative h-20 w-15 shrink-0 overflow-hidden bg-ground-alt">
+        <Panel title="Items" bodyClassName="">
+          <ul className="divide-y divide-[#f6f7f9] px-5">
+            {order.items.map((item) => (
+              <li key={item.id} className="flex items-center gap-4 py-4">
+                <span className="relative h-20 w-[3.75rem] shrink-0 overflow-hidden rounded-[6px] bg-[#f1f2f6]">
                   {item.image && (
-                    <Image src={item.image} alt={item.title} fill sizes="60px" className="object-cover" />
+                    <Image
+                      src={item.image}
+                      alt=""
+                      fill
+                      sizes="60px"
+                      className="object-cover"
+                    />
                   )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[0.75rem] tracking-[0.04em] uppercase">{item.title}</p>
-                  <p className="mt-1 text-xs text-ink-faint">
+                </span>
+                <span className="min-w-0 flex-1">
+                  <Link
+                    href={"/products/" + item.handle}
+                    className="block truncate text-[0.875rem] text-ink hover:underline"
+                  >
+                    {item.title}
+                  </Link>
+                  <span className="mt-0.5 block text-[0.75rem] text-[#9aa0ab]">
                     {item.sku ? item.sku + " · " : ""}Qty {item.quantity} &times;{" "}
                     {formatINR(item.unitPrice)}
-                  </p>
-                </div>
-                <span className="text-sm font-medium">{formatINR(item.lineTotal)}</span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-[0.875rem] font-medium text-ink">
+                  {formatINR(item.lineTotal)}
+                </span>
               </li>
             ))}
           </ul>
 
-          <dl className="flex flex-col gap-2 border-t border-line px-5 py-4 text-sm">
+          <dl className="flex flex-col gap-2 border-t border-[#f1f2f6] px-5 py-4 text-[0.875rem]">
             <div className="flex justify-between">
-              <dt className="text-ink-soft">Subtotal</dt>
-              <dd>{formatINR(order.subtotal)}</dd>
+              <dt className="text-[#6b7280]">Subtotal</dt>
+              <dd className="text-ink">{formatINR(order.subtotal)}</dd>
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between">
-                <dt className="text-ink-soft">
+                <dt className="text-[#6b7280]">
                   Discount{order.couponCode ? " (" + order.couponCode + ")" : ""}
                 </dt>
-                <dd>&minus;{formatINR(order.discount)}</dd>
+                <dd className="text-ink">&minus;{formatINR(order.discount)}</dd>
               </div>
             )}
             <div className="flex justify-between">
-              <dt className="text-ink-soft">Shipping</dt>
-              <dd>{order.shipping === 0 ? "Free" : formatINR(order.shipping)}</dd>
+              <dt className="text-[#6b7280]">Shipping</dt>
+              <dd className="text-ink">
+                {order.shipping === 0 ? "Free" : formatINR(order.shipping)}
+              </dd>
             </div>
-            <div className="flex justify-between border-t border-line pt-2 text-base font-medium">
-              <dt>Total</dt>
-              <dd>{formatINR(order.total)}</dd>
+            <div className="mt-1 flex justify-between border-t border-[#f1f2f6] pt-3 text-[1rem]">
+              <dt className="text-ink">Total</dt>
+              <dd className="font-medium text-ink">{formatINR(order.total)}</dd>
             </div>
           </dl>
-        </section>
+        </Panel>
 
-        <div className="flex flex-col gap-6">
-          {/* Customer */}
-          <section className="border border-line bg-ground p-5">
-            <h2 className="eyebrow mb-3">Customer</h2>
-            <address className="text-sm leading-relaxed text-ink-soft not-italic">
-              {order.customerName}
+        <div className="flex flex-col gap-4">
+          <Panel title="Customer">
+            <address className="text-[0.875rem] leading-relaxed text-[#6b7280] not-italic">
+              <span className="text-ink">{order.customerName}</span>
               <br />
-              <a href={"mailto:" + order.email} className="underline underline-offset-2">
+              <a
+                href={"mailto:" + order.email}
+                className="underline underline-offset-2 hover:text-ink"
+              >
                 {order.email}
               </a>
               <br />
-              <a href={"tel:" + order.phone} className="underline underline-offset-2">
+              <a
+                href={"tel:" + order.phone}
+                className="underline underline-offset-2 hover:text-ink"
+              >
                 {order.phone}
               </a>
               <br />
@@ -118,13 +143,12 @@ export default async function AdminOrderPage({ params }: PageProps) {
               <br />
               {order.country}
             </address>
-          </section>
+          </Panel>
 
           {/* Only present when billing differed from shipping */}
           {order.billingAddress && (
-            <section className="border border-line bg-ground p-5">
-              <h2 className="eyebrow mb-3">Billing address</h2>
-              <address className="text-sm leading-relaxed text-ink-soft not-italic">
+            <Panel title="Billing address">
+              <address className="text-[0.875rem] leading-relaxed text-[#6b7280] not-italic">
                 {order.billingAddress.name}
                 <br />
                 {order.billingAddress.addressLine1}
@@ -144,41 +168,40 @@ export default async function AdminOrderPage({ params }: PageProps) {
                   </>
                 )}
               </address>
-            </section>
+            </Panel>
           )}
 
           {/* Note left by the customer at checkout */}
           {order.customerNote && (
-            <section className="border border-line bg-sale p-5">
-              <h2 className="eyebrow mb-2">Customer note</h2>
-              <p className="text-sm whitespace-pre-wrap text-ink">{order.customerNote}</p>
-            </section>
+            <Panel title="Customer note">
+              <p className="text-[0.875rem] whitespace-pre-wrap text-ink">
+                {order.customerNote}
+              </p>
+            </Panel>
           )}
 
-          {/* Payment */}
-          <section className="border border-line bg-ground p-5">
-            <h2 className="eyebrow mb-3">Payment</h2>
-            <dl className="flex flex-col gap-1.5 text-xs text-ink-soft">
+          <Panel title="Payment">
+            <dl className="flex flex-col gap-2 text-[0.8125rem]">
               <div className="flex justify-between gap-3">
-                <dt>Method</dt>
-                <dd className="text-right">{order.paymentMethod}</dd>
+                <dt className="text-[#9aa0ab]">Method</dt>
+                <dd className="text-right text-ink">{order.paymentMethod}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt>Razorpay order</dt>
-                <dd className="truncate text-right font-mono">{order.razorpayOrderId ?? "—"}</dd>
+                <dt className="shrink-0 text-[#9aa0ab]">Razorpay order</dt>
+                <dd className="truncate text-right font-mono text-[0.75rem] text-ink">
+                  {order.razorpayOrderId ?? "—"}
+                </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt>Payment ID</dt>
-                <dd className="truncate text-right font-mono">
+                <dt className="shrink-0 text-[#9aa0ab]">Payment ID</dt>
+                <dd className="truncate text-right font-mono text-[0.75rem] text-ink">
                   {order.razorpayPaymentId ?? "—"}
                 </dd>
               </div>
             </dl>
-          </section>
+          </Panel>
 
-          {/* Fulfilment */}
-          <section className="border border-line bg-ground p-5">
-            <h2 className="eyebrow mb-3">Fulfilment</h2>
+          <Panel title="Fulfilment">
             <OrderForm
               id={order.id}
               status={order.status}
@@ -186,7 +209,7 @@ export default async function AdminOrderPage({ params }: PageProps) {
               trackingNumber={order.trackingNumber ?? ""}
               notes={order.notes ?? ""}
             />
-          </section>
+          </Panel>
         </div>
       </div>
     </AdminShell>

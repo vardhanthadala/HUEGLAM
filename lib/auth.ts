@@ -3,16 +3,26 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 
+/**
+ * Admin sessions.
+ *
+ * Separate from lib/customer-auth.ts by cookie name *and* audience claim, so a
+ * customer token is rejected here even though both are signed with AUTH_SECRET.
+ * There is deliberately no development bypass: an admin panel that trusts
+ * NODE_ENV is one misconfigured deploy away from being wide open.
+ */
+
 const COOKIE_NAME = "hg_admin";
+const AUDIENCE = "hueglam:admin";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12 hours
 
-export type AdminSession = { id: number; email: string; name: string };
+export type AdminSession = { id: string; email: string; name: string };
 
 function secretKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret || secret.length < 32) {
     throw new Error(
-      "AUTH_SECRET is missing or too short. Generate one with:\n" +
+      "AUTH_SECRET is missing or shorter than 32 characters. Generate one with:\n" +
         '  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
     );
   }
@@ -22,6 +32,7 @@ function secretKey(): Uint8Array {
 export async function createSession(session: AdminSession) {
   const token = await new SignJWT({ ...session })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS)
     .sign(secretKey());
@@ -29,7 +40,9 @@ export async function createSession(session: AdminSession) {
   const jar = await cookies();
   jar.set(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: "lax",
+    // strict rather than lax: nothing should ever navigate into the admin from
+    // another site carrying this cookie.
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: MAX_AGE_SECONDS,
@@ -41,22 +54,21 @@ export async function destroySession() {
   jar.delete(COOKIE_NAME);
 }
 
-/** Returns the signed-in admin, or null. Never throws on a bad cookie. */
+/** The signed-in admin, or null. Never throws on a bad or absent cookie. */
 export async function getSession(): Promise<AdminSession | null> {
-  // Bypass login completely for local development
-  if (process.env.NODE_ENV === "development") {
-    return { id: 1, email: "dev@hueglam.com", name: "Dev Admin" };
-  }
-
   try {
     const jar = await cookies();
     const token = jar.get(COOKIE_NAME)?.value;
     if (!token) return null;
 
-    const { payload } = await jwtVerify(token, secretKey());
-    if (typeof payload.id !== "number" || typeof payload.email !== "string") {
+    const { payload } = await jwtVerify(token, secretKey(), {
+      audience: AUDIENCE,
+    });
+
+    if (typeof payload.id !== "string" || typeof payload.email !== "string") {
       return null;
     }
+
     return {
       id: payload.id,
       email: payload.email,

@@ -11,7 +11,8 @@ import {
 } from "react";
 
 export type CartLine = {
-  productId: number;
+  /** Product _id as a hex string. */
+  productId: string;
   handle: string;
   title: string;
   image: string | null;
@@ -23,8 +24,11 @@ export type CartLine = {
 
 type Snapshot = { lines: CartLine[]; note: string; hydrated: boolean };
 
-const LINES_KEY = "hueglam.cart.v1";
-const NOTE_KEY = "hueglam.cart.note.v1";
+/* v2: product ids are Mongo ObjectId strings. A v1 cart saved before that
+   change holds numeric ids that no longer resolve, so the key was bumped to
+   drop those baskets rather than let checkout reject them at the till. */
+const LINES_KEY = "hueglam.cart.v2";
+const NOTE_KEY = "hueglam.cart.note.v2";
 
 /*
   The cart lives in a module-level store rather than component state so it can
@@ -54,7 +58,7 @@ function readStoredCart(): CartLine[] {
     return parsed.filter(
       (l): l is CartLine =>
         Boolean(l) &&
-        typeof l.productId === "number" &&
+        typeof l.productId === "string" &&
         typeof l.price === "number" &&
         typeof l.quantity === "number" &&
         l.quantity > 0,
@@ -127,8 +131,8 @@ type CartContextValue = {
   openCart: () => void;
   closeCart: () => void;
   add: (line: Omit<CartLine, "quantity">, quantity?: number) => void;
-  setQuantity: (productId: number, quantity: number) => void;
-  remove: (productId: number) => void;
+  setQuantity: (productId: string, quantity: number) => void;
+  remove: (productId: string) => void;
   setNote: (note: string) => void;
   clear: () => void;
 };
@@ -156,7 +160,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
   }, []);
 
-  const setQuantity = useCallback((productId: number, quantity: number) => {
+  const setQuantity = useCallback((productId: string, quantity: number) => {
     const current = snapshot.lines;
     setLines(
       quantity <= 0
@@ -165,7 +169,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const remove = useCallback((productId: number) => {
+  const remove = useCallback((productId: string) => {
     setLines(snapshot.lines.filter((l) => l.productId !== productId));
   }, []);
 

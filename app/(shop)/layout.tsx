@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getPublishedProducts } from "@/lib/queries";
 import { getCustomerSession } from "@/lib/customer-auth";
+import { getAnnouncements } from "@/lib/content";
 
 /**
  * Storefront chrome. The black announcement bar sits above the header on every
@@ -19,14 +20,15 @@ export default async function ShopLayout({
 }) {
   // The cart drawer recommends other products, so the catalogue is loaded here
   // once for the whole storefront rather than fetched again in the client.
-  const [products, customer] = await Promise.all([
+  const [products, customer, announcements] = await Promise.all([
     getPublishedProducts(),
     getCustomerSession(),
+    getAnnouncements(),
   ]);
 
   return (
     <CartProvider>
-      <AnnouncementBar />
+      <AnnouncementBar messages={announcements} />
       <SiteHeader products={products} customer={customer} />
       <main>{children}</main>
       <SiteFooter />
