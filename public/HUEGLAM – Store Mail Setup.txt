@@ -1,0 +1,50 @@
+📧 HUEGLAM – How to Set Up Store Emails (Resend Guide)
+What this does:
+Whenever a customer buys something on HUEGLAM:
+
+The customer gets an instant receipt in their email with photos of the products they bought.
+You (the Admin) get an instant notification email with the customer's name, phone, delivery address, and order total.
+Step 1: Create a Resend Account
+Open your browser and go to resend.com/signup.
+Sign up using your business email (for example: support@hueglam.com or your Google account).
+Confirm your email address.
+Step 2: Add Your Website Domain (hueglam.com)
+Why? Email providers like Gmail will mark emails as Spam unless you prove you own hueglam.com.
+
+Inside Resend, click on "Domains" on the left menu.
+Click the black button that says "Add Domain".
+Type: hueglam.com
+Click "Add".
+You will see a table with 3 DNS Records (they look like codes with names like DKIM, SPF, MX). Keep this tab open.
+Step 3: Connect It to Your Domain (e.g. GoDaddy / Namecheap)
+(If you are not sure how to do this, your domain provider's support chat can do it for you in 2 minutes!)
+
+Log in to where you bought hueglam.com (GoDaddy, Hostinger, Namecheap, Cloudflare, etc.).
+Go to My Domains → DNS Settings (or Manage DNS).
+Copy the 3 lines from Resend and paste them into your DNS records:
+Line 1 (TXT)
+Line 2 (MX)
+Line 3 (TXT)
+Go back to Resend and click "Verify Domain".
+The status will turn Green ("Verified").
+Step 4: Get Your Secret API Key
+In Resend, click on "API Keys" on the left menu.
+Click "Create API Key".
+For Name, type: HUEGLAM Production
+Click "Add".
+A secret key will appear that starts with re_...
+(Example: re_123456789abcdefg...)
+Copy this key and send it to your developer (or save it securely).
+Step 5: What Gets Added to the Website Settings:
+Your developer will add these 3 lines to your store:
+
+env
+RESEND_API_KEY="re_your_copied_key_here"
+ORDER_EMAIL_FROM="HUEGLAM <support@hueglam.com>"
+ORDER_EMAIL_BCC="support@hueglam.com"
+✅ That's it!
+From that moment on:
+
+All emails will officially be sent from HUEGLAM <support@hueglam.com>.
+They will land straight in the customer’s Primary Inbox (not Spam/Junk).
+Every order will alert your admin email automatically.

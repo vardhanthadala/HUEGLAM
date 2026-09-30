@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { getOrderById } from "@/lib/queries";
 import { AdminShell, Panel } from "@/components/AdminShell";
 import { OrderForm } from "@/components/OrderForm";
+import { CancelOrderModal } from "@/components/CancelOrderModal";
 import { formatINR } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function AdminOrderPage({ params }: PageProps) {
   if (!order) notFound();
 
   const paid = ["paid", "shipped", "delivered"].includes(order.status);
+  const cancelled = order.status === "cancelled";
 
   return (
     <AdminShell
@@ -30,12 +32,17 @@ export default async function AdminOrderPage({ params }: PageProps) {
         <span
           className={
             "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] " +
-            (paid ? "bg-[#edf7f0] text-[#3f7a4f]" : "bg-[#f1f2f6] text-[#6b7280]")
+            (cancelled
+              ? "bg-[#fef2f2] text-[#b91c1c]"
+              : paid
+              ? "bg-[#edf7f0] text-[#3f7a4f]"
+              : "bg-[#f1f2f6] text-[#6b7280]")
           }
         >
           <span
             className={
-              "size-1.5 rounded-full " + (paid ? "bg-[#5a8a63]" : "bg-[#b6bcc6]")
+              "size-1.5 rounded-full " +
+              (cancelled ? "bg-[#ef4444]" : paid ? "bg-[#5a8a63]" : "bg-[#b6bcc6]")
             }
           />
           {order.status}
@@ -209,6 +216,37 @@ export default async function AdminOrderPage({ params }: PageProps) {
               trackingNumber={order.trackingNumber ?? ""}
               notes={order.notes ?? ""}
             />
+          </Panel>
+
+          <Panel title="Cancel Order">
+            {order.status === "cancelled" ? (
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="rounded-[8px] border border-line bg-ground-alt/60 p-3">
+                  <span className="font-semibold text-ink block">Status: Cancelled</span>
+                  {order.cancelledAt && (
+                    <span className="text-ink-soft block mt-0.5">
+                      Cancelled on: {order.cancelledAt.toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  {order.cancelReason && (
+                    <span className="text-ink block mt-1.5 font-medium">
+                      Reason: <span className="font-normal text-ink-soft">{order.cancelReason}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-ink-soft leading-relaxed">
+                  Need to cancel this order? Cancelling will notify the customer, update order records, and optionally restock the inventory.
+                </p>
+                <CancelOrderModal
+                  orderId={order.id}
+                  orderNumber={order.orderNumber}
+                  status={order.status}
+                />
+              </div>
+            )}
           </Panel>
         </div>
       </div>

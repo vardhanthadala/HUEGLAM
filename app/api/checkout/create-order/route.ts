@@ -4,6 +4,7 @@ import { connectDB, mongoConfigured } from "@/lib/mongodb";
 import { Product } from "@/models/Product";
 import { Coupon } from "@/models/Coupon";
 import { Order } from "@/models/Order";
+import { Customer } from "@/models/Customer";
 import { generateOrderNumber, priceOrder, type PricedLine } from "@/lib/pricing";
 import { getRazorpay, razorpayConfigured } from "@/lib/razorpay";
 import { getCustomerSession } from "@/lib/customer-auth";
@@ -35,11 +36,15 @@ const bodySchema = z.object({
     .array(
       z.object({
         productId: objectId,
-        quantity: z.number().int().min(1).max(20),
+        quantity: z
+          .number()
+          .int()
+          .min(1, "Quantity must be at least 1")
+          .max(100, "Maximum 100 units allowed per item"),
       }),
     )
-    .min(1)
-    .max(30),
+    .min(1, "Your cart is empty")
+    .max(50),
   couponCode: z.string().trim().max(40).optional(),
   customerNote: z.string().trim().max(1000).optional(),
   // Only sent when the customer chose a different billing address.
@@ -186,6 +191,95 @@ export async function POST(request: Request) {
 
   const totals = priceOrder(priced, coupon);
 
+  // When total is 0 (e.g. 100% discount coupon or gift), Razorpay rejects orders with 0 amount.
+  // Instead, immediately store and fulfill the free order directly.
+  if (totals.total === 0) {
+    const orderNumber = generateOrderNumber();
+    try {
+      const freeOrder = await Order.create({
+        orderNumber,
+        email: session.email.toLowerCase(),
+        customerId: session.id,
+        customerName: payload.customer.name,
+        phone: payload.customer.phone,
+        addressLine1: payload.customer.addressLine1,
+        addressLine2: payload.customer.addressLine2 ?? "",
+        city: payload.customer.city,
+        state: payload.customer.state,
+        pincode: payload.customer.pincode,
+        country: "India",
+        items: priced,
+        subtotal: totals.subtotal,
+        discount: totals.discount,
+        shipping: totals.shipping,
+        total: totals.total,
+        couponCode: coupon?.code ?? null,
+        customerNote: payload.customerNote || null,
+        billingAddress: payload.billingAddress ?? null,
+        status: "paid",
+        paymentMethod: "free_coupon",
+        razorpayOrderId: null,
+      });
+
+      // Synchronize latest delivery address to customer profile
+      await Customer.findByIdAndUpdate(session.id, {
+        $set: {
+          name: payload.customer.name,
+          phone: payload.customer.phone,
+          addressLine1: payload.customer.addressLine1,
+          addressLine2: payload.customer.addressLine2 ?? "",
+          city: payload.customer.city,
+          state: payload.customer.state,
+          pincode: payload.customer.pincode,
+          country: "India",
+        },
+      }).catch((err) => console.error("[checkout] customer profile sync error:", err));
+
+      // Draw down stock & increment coupon usage
+      if (coupon?.code) {
+        await Coupon.updateOne({ code: coupon.code }, { $inc: { usageCount: 1 } });
+      }
+      for (const item of priced) {
+        if (!item.productId) continue;
+        await Product.updateOne(
+          { _id: item.productId, trackInventory: true },
+          [
+            {
+              $set: {
+                inventory: {
+                  $max: [0, { $subtract: ["$inventory", item.quantity] }],
+                },
+              },
+            },
+          ],
+          { updatePipeline: true },
+        ).catch(() => {});
+      }
+
+      // Send confirmation email
+      try {
+        const { sendOrderConfirmation } = await import("@/lib/mail");
+        const { getOrderWithItems } = await import("@/lib/queries");
+        const detail = await getOrderWithItems(orderNumber);
+        if (detail) await sendOrderConfirmation(detail.order, detail.items);
+      } catch (mailErr) {
+        console.error("[checkout] confirmation email failed:", mailErr);
+      }
+
+      return NextResponse.json({
+        free: true,
+        orderNumber,
+        totals,
+      });
+    } catch (freeErr) {
+      console.error("[checkout] free order creation error:", freeErr);
+      return NextResponse.json(
+        { error: "Could not complete free order. Please try again." },
+        { status: 500 },
+      );
+    }
+  }
+
   const rzp = getRazorpay();
 
   /*
@@ -199,14 +293,22 @@ export async function POST(request: Request) {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 3 && !saved; attempt++) {
-    orderNumber = generateOrderNumber();
-
-    const rzpOrder = await rzp.orders.create({
-      amount: totals.total,
-      currency: "INR",
-      receipt: orderNumber,
-      notes: { orderNumber, email: session.email.toLowerCase() },
-    });
+    let rzpOrder;
+    try {
+      rzpOrder = await rzp.orders.create({
+        amount: totals.total,
+        currency: "INR",
+        receipt: orderNumber,
+        notes: { orderNumber, email: session.email.toLowerCase() },
+      });
+    } catch (rzpErr: any) {
+      console.error("[checkout] Razorpay order creation failed:", rzpErr);
+      const desc =
+        rzpErr?.error?.description ||
+        rzpErr?.message ||
+        "Payment provider rejected order amount.";
+      return NextResponse.json({ error: desc }, { status: 400 });
+    }
 
     try {
       saved = await Order.create({
@@ -236,6 +338,20 @@ export async function POST(request: Request) {
         paymentMethod: "razorpay",
         razorpayOrderId: rzpOrder.id,
       });
+
+      // Synchronize latest delivery address and contact info to customer profile
+      await Customer.findByIdAndUpdate(session.id, {
+        $set: {
+          name: payload.customer.name,
+          phone: payload.customer.phone,
+          addressLine1: payload.customer.addressLine1,
+          addressLine2: payload.customer.addressLine2 ?? "",
+          city: payload.customer.city,
+          state: payload.customer.state,
+          pincode: payload.customer.pincode,
+          country: "India",
+        },
+      }).catch((err) => console.error("[checkout] customer profile sync error:", err));
     } catch (err) {
       lastError = err;
       // 11000 is a duplicate key — retry with a fresh number. Anything else is

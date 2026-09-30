@@ -76,9 +76,9 @@ export default async function ProductPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="mx-auto max-w-[1200px] px-gutter">
+      <div className="mx-auto max-w-[1200px] px-gutter animate-fade-in-up">
         <nav className="py-6 text-[0.875rem] text-ink-soft">
-          <Link href="/" className="hover:text-ink">
+          <Link href="/" className="hover:text-ink transition-colors">
             Home
           </Link>
           <span className="mx-2">/</span>

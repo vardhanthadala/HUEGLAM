@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "./CartProvider";
 import { formatINR } from "@/lib/money";
 import type { ProductWithImages } from "@/lib/queries";
@@ -33,8 +33,53 @@ export function CartDrawer({ products }: { products: ProductWithImages[] }) {
   // Edited separately from the saved note so Close can discard the changes.
   const [draft, setDraft] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
-  if (!isOpen) return null;
+  // Smooth entrance and exit animations
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);
+      const timer = requestAnimationFrame(() => {
+        setAnimating(true);
+      });
+      // Lock background scrolling
+      document.body.style.overflow = "hidden";
+      return () => cancelAnimationFrame(timer);
+    } else {
+      setAnimating(false);
+      const timer = setTimeout(() => {
+        setMounted(false);
+        document.body.style.overflow = "";
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isOpen) {
+        closeCart();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, closeCart]);
+
+  // Build product inventory lookup to cap + button dynamically
+  const productStockMap = useMemo(() => {
+    const map = new Map<string, { trackInventory: boolean; inventory: number }>();
+    for (const p of products) {
+      map.set(p.id, {
+        trackInventory: Boolean(p.trackInventory),
+        inventory: typeof p.inventory === "number" ? p.inventory : 999,
+      });
+    }
+    return map;
+  }, [products]);
+
+  if (!mounted && !isOpen) return null;
 
   const inCart = new Set(lines.map((l) => l.productId));
   const recommendations = products.filter((p) => !inCart.has(p.id)).slice(0, 4);
@@ -50,15 +95,25 @@ export function CartDrawer({ products }: { products: ProductWithImages[] }) {
   const thumb = "relative w-20 shrink-0 overflow-hidden bg-ground-alt aspect-2/3";
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div
+      className={`fixed inset-0 z-50 transition-opacity duration-300 ${
+        animating ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+    >
+      {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity duration-300"
         onClick={closeCart}
         aria-label="Close cart"
       />
 
-      <aside className="absolute inset-y-0 right-0 flex w-[843px] max-w-full bg-white">
+      {/* Drawer Panel */}
+      <aside
+        className={`absolute inset-y-0 right-0 flex w-[843px] max-w-full bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          animating ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         {/* You may also like */}
         <div className="hidden w-[353px] shrink-0 flex-col border-r border-line lg:flex">
           <h2 className="px-[26px] pt-6 pb-4 text-[0.9375rem] text-ink">You May Also Like</h2>
@@ -146,6 +201,34 @@ export function CartDrawer({ products }: { products: ProductWithImages[] }) {
             </button>
           </div>
 
+          {/* Free Shipping Progress Bar */}
+          {lines.length > 0 && (
+            <div className="border-t border-line bg-[#fafafa] px-[26px] py-3.5">
+              {subtotal >= 99900 ? (
+                <div className="flex items-center gap-2 text-[0.8125rem] font-medium text-emerald-700">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <span>Congratulations! You've unlocked <strong>FREE Standard Delivery</strong>!</span>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[0.8125rem] text-ink">
+                    Add <strong className="font-semibold text-ink">{formatINR(99900 - subtotal)}</strong> more to get <strong className="text-emerald-700">FREE Delivery</strong>
+                  </p>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#e5e7eb]">
+                    <div
+                      className="h-full rounded-full bg-ink transition-all duration-300 ease-out"
+                      style={{ width: `${Math.min(100, Math.round((subtotal / 99900) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {lines.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
               <p className="text-[0.9375rem] text-ink-soft">Your cart is empty.</p>
@@ -190,27 +273,53 @@ export function CartDrawer({ products }: { products: ProductWithImages[] }) {
                         {formatINR(line.price)} x {line.quantity}
                       </p>
 
-                      <div className="mt-4 inline-flex items-center border border-line">
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.productId, line.quantity - 1)}
-                          className="px-3.5 py-2 text-[0.9375rem] hover:bg-ground-alt"
-                          aria-label="Decrease quantity"
-                        >
-                          &minus;
-                        </button>
-                        <span className="min-w-9 text-center text-[0.875rem]">
-                          {line.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(line.productId, line.quantity + 1)}
-                          className="px-3.5 py-2 text-[0.9375rem] hover:bg-ground-alt"
-                          aria-label="Increase quantity"
-                        >
-                          +
-                        </button>
-                      </div>
+                      {(() => {
+                        const stockInfo = productStockMap.get(line.productId);
+                        const isStockCapped =
+                          Boolean(stockInfo?.trackInventory) &&
+                          line.quantity >= (stockInfo?.inventory ?? 0);
+
+                        return (
+                          <>
+                            <div className="mt-4 inline-flex items-center border border-line">
+                              <button
+                                type="button"
+                                onClick={() => setQuantity(line.productId, line.quantity - 1)}
+                                className="px-3.5 py-2 text-[0.9375rem] hover:bg-ground-alt"
+                                aria-label="Decrease quantity"
+                              >
+                                &minus;
+                              </button>
+                              <span className="min-w-9 text-center text-[0.875rem]">
+                                {line.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isStockCapped}
+                                onClick={() => {
+                                  if (!isStockCapped) {
+                                    setQuantity(line.productId, line.quantity + 1);
+                                  }
+                                }}
+                                className={`px-3.5 py-2 text-[0.9375rem] ${
+                                  isStockCapped
+                                    ? "cursor-not-allowed text-ink-faint opacity-40"
+                                    : "hover:bg-ground-alt"
+                                }`}
+                                aria-label="Increase quantity"
+                                title={isStockCapped ? "Maximum available stock reached" : "Increase quantity"}
+                              >
+                                +
+                              </button>
+                            </div>
+                            {isStockCapped && (
+                              <p className="mt-1 text-[0.75rem] text-ink-soft">
+                                Max stock reached ({stockInfo?.inventory} in stock)
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <button

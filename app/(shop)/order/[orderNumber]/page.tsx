@@ -6,6 +6,7 @@ import { getOrderWithItems } from "@/lib/queries";
 import { getCustomerSession } from "@/lib/customer-auth";
 import { getSession } from "@/lib/auth";
 import { formatINR } from "@/lib/money";
+import { StatusPill } from "@/components/StatusPill";
 
 export const dynamic = "force-dynamic";
 
@@ -41,23 +42,52 @@ export default async function OrderPage({ params }: PageProps) {
   const isOwner =
     customer?.email?.toLowerCase() === order.email.toLowerCase();
   if (!isOwner && !admin) notFound();
-  const paid = order.status !== "pending" && order.status !== "failed";
+  const isCancelled = order.status === "cancelled";
+  const isDelivered = order.status === "delivered";
+  const isShipped = order.status === "shipped";
+  const isPaid = order.status === "paid";
+  const isPendingOrFailed = order.status === "pending" || order.status === "failed";
+
+  let eyebrowText = "Order confirmed";
+  let headingText = "Thank you, " + order.customerName.split(" ")[0] + "!";
+  let subtitleText = "We have received your payment. A confirmation has been sent to " + order.email + ".";
+
+  if (isCancelled) {
+    eyebrowText = "Order cancelled";
+    headingText = "This order was cancelled";
+    subtitleText = order.cancelReason
+      ? "Cancellation reason: " + order.cancelReason
+      : "This order has been cancelled. Any captured payment will be refunded.";
+  } else if (isDelivered) {
+    eyebrowText = "Order delivered";
+    headingText = "Your package has arrived!";
+    subtitleText = "Delivered to " + order.city + ", " + order.state + ". We hope you love your HUEGLAM purchase.";
+  } else if (isShipped) {
+    eyebrowText = "Order shipped";
+    headingText = "Your order is on the way!";
+    subtitleText = "Your package has been dispatched. Track your delivery below.";
+  } else if (isPendingOrFailed) {
+    eyebrowText = "Order pending";
+    headingText = "Payment not completed";
+    subtitleText = "We have not received payment for this order yet. If money was debited, write to support@hueglam.com.";
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-gutter py-16">
       <div className="text-center">
-        <span className="eyebrow">{paid ? "Order confirmed" : "Order pending"}</span>
+        <span className="eyebrow">{eyebrowText}</span>
         <h1 className="mt-3 text-2xl font-light tracking-tight sm:text-3xl">
-          {paid ? "Thank you, " + order.customerName.split(" ")[0] + "!" : "Payment not completed"}
+          {headingText}
         </h1>
         <p className="mt-3 text-sm text-ink-soft">
-          {paid
-            ? "We have received your payment. A confirmation has been sent to " + order.email + "."
-            : "We have not received payment for this order yet. If money was debited, write to support@hueglam.com."}
+          {subtitleText}
         </p>
-        <p className="mt-4 text-[0.6875rem] tracking-[0.1em] uppercase text-ink-faint">
-          Order {order.orderNumber}
-        </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <p className="text-[0.6875rem] tracking-[0.1em] uppercase text-ink-faint">
+            Order {order.orderNumber}
+          </p>
+          <StatusPill status={order.status} />
+        </div>
       </div>
 
       <ul className="mt-12 divide-y divide-line border-y border-line">
@@ -127,12 +157,16 @@ export default async function OrderPage({ params }: PageProps) {
           </address>
         </div>
         <div>
-          <h2 className="eyebrow mb-2">Status</h2>
-          <p className="text-sm capitalize text-ink-soft">{order.status}</p>
+          <h2 className="eyebrow mb-2">Order Status</h2>
+          <div className="mt-1 flex items-center gap-2">
+            <StatusPill status={order.status} />
+          </div>
           {order.trackingNumber && (
-            <p className="mt-2 text-sm text-ink-soft">
-              {order.trackingCarrier}: {order.trackingNumber}
-            </p>
+            <div className="mt-3 rounded-[8px] border border-line bg-ground-alt/40 p-3 text-xs leading-relaxed text-ink-soft">
+              <span className="font-medium text-ink">Carrier:</span> {order.trackingCarrier || "Standard"}
+              <br />
+              <span className="font-medium text-ink">Tracking #:</span> {order.trackingNumber}
+            </div>
           )}
         </div>
       </div>

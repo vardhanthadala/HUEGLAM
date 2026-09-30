@@ -57,30 +57,34 @@ export function HeroSlideshow({ slides }: { slides: HeroSlide[] }) {
           key={slide.id || slide.desktop}
           aria-hidden={i !== index}
           className={
-            "transition-opacity duration-700 " +
-            (i === index ? "opacity-100" : "pointer-events-none absolute inset-0 opacity-0")
+            "transition-opacity duration-1000 ease-in-out " +
+            (i === index ? "opacity-100 z-10" : "pointer-events-none absolute inset-0 opacity-0 z-0")
           }
         >
           {/* Mobile artwork, 4:5 */}
-          <div className="relative aspect-[4/5] w-full lg:hidden">
+          <div className="relative aspect-[4/5] w-full lg:hidden overflow-hidden">
             <Image
               src={slide.mobile}
               alt={slide.alt}
               fill
               priority={i === 0}
               sizes="100vw"
-              className="object-cover"
+              className={`object-cover transition-transform duration-7000 ease-out ${
+                i === index ? "scale-105" : "scale-100"
+              }`}
             />
           </div>
           {/* Desktop artwork: Fine-tuned height */}
-          <div className="relative hidden h-[495px] w-full xl:h-[570px] 2xl:h-[640px] lg:block">
+          <div className="relative hidden h-[495px] w-full xl:h-[570px] 2xl:h-[640px] lg:block overflow-hidden">
             <Image
               src={slide.desktop}
               alt={slide.alt}
               fill
               priority={i === 0}
               sizes="100vw"
-              className="object-cover object-center"
+              className={`object-cover object-center transition-transform duration-7000 ease-out ${
+                i === index ? "scale-105" : "scale-100"
+              }`}
             />
           </div>
         </div>

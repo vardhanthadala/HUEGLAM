@@ -28,19 +28,21 @@ export default async function AdminLoginPage() {
     !process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 32;
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#f6f7f9] px-6 py-16">
-      <div className="w-full max-w-[22rem]">
-        <div className="mb-6">
-          <span className="text-[0.9375rem] tracking-[0.18em] text-ink">
+    <div className="flex min-h-dvh items-center justify-center bg-[#f8f9fa] px-6 py-16">
+      <div className="w-full max-w-[24rem]">
+        <div className="mb-8 text-center">
+          <span className="inline-block text-[0.875rem] font-medium tracking-[0.28em] text-ink uppercase">
             HUEGLAM
           </span>
-          <h1 className="mt-3 text-[1.375rem] text-ink">Store admin</h1>
-          <p className="mt-1 text-[0.875rem] text-[#6b7280]">
+          <h1 className="mt-4 text-[1.5rem] font-normal tracking-tight text-ink font-serif">
+            Store admin
+          </h1>
+          <p className="mt-1.5 text-[0.8125rem] text-[#6b7280]">
             Sign in to manage products, content and orders.
           </p>
         </div>
 
-        <div className="rounded-[14px] border border-[#ebedf1] bg-white p-6 shadow-[0_1px_3px_rgba(17,24,39,0.04)]">
+        <div className="rounded-[16px] border border-[#e8ebef] bg-white p-7 shadow-[0_4px_24px_rgba(0,0,0,0.03),0_1px_2px_rgba(0,0,0,0.02)]">
           <LoginForm />
         </div>
 
@@ -56,8 +58,8 @@ export default async function AdminLoginPage() {
           </p>
         )}
 
-        <p className="mt-6 text-center text-[0.75rem] text-[#9aa0ab]">
-          Authorised access only. Attempts are rate limited.
+        <p className="mt-8 text-center text-[0.75rem] tracking-wide text-[#9aa0ab]">
+          Authorised access only &middot; Attempts are rate limited
         </p>
       </div>
     </div>

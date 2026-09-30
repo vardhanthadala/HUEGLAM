@@ -1,0 +1,38 @@
+HUEGLAM - Admin Setup
+
+
+
+A. View Existing Admins:
+
+npm run admin list
+
+------------------------
+
+B. Reset Password for an Existing Admin:
+
+npm run admin reset <email> <newPassword>
+
+Example:
+
+npm run admin reset you@hueglam.com MyNewSecretPassword123!
+
+------------------------
+
+C. Create a New Admin Account:
+
+npm run admin create <email> <password> "<Admin Name>"
+
+Example:
+
+npm run admin create vardhan@dexze.com SecurePassword2026! "Vardhan"vardhan@dexze.com SecurePassword2026! "Vardhan"
+
+------------------------
+
+
+D. Delete an Existing Admin:
+
+npm run admin delete <email>
+
+Example:
+
+npm run admin delete you@hueglam.com

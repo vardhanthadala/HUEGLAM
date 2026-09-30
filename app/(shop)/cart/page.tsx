@@ -31,6 +31,32 @@ export default function CartPage() {
     <div className="mx-auto max-w-[1200px] px-gutter py-10">
       <h1 className="text-[28px] font-light tracking-tight text-ink">Your Cart</h1>
 
+      {/* Free Shipping Progress Banner */}
+      <div className="mt-6 rounded-lg border border-line bg-[#fafafa] p-4">
+        {subtotal >= 99900 ? (
+          <div className="flex items-center gap-2.5 text-[0.875rem] font-medium text-emerald-700">
+            <span className="flex size-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
+            <span>You've unlocked <strong>FREE Standard Delivery</strong> on this order!</span>
+          </div>
+        ) : (
+          <div>
+            <p className="text-[0.875rem] text-ink">
+              Add <strong className="font-semibold text-ink">{formatINR(99900 - subtotal)}</strong> more to get <strong className="text-emerald-700">FREE Delivery</strong>
+            </p>
+            <div className="mt-2.5 h-2 w-full max-w-md overflow-hidden rounded-full bg-[#e5e7eb]">
+              <div
+                className="h-full rounded-full bg-ink transition-all duration-300 ease-out"
+                style={{ width: `${Math.min(100, Math.round((subtotal / 99900) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="mt-8 grid gap-12 lg:grid-cols-[1fr_370px] lg:gap-10">
         {/* Line items */}
         <div>

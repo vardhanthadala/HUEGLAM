@@ -66,11 +66,13 @@ export interface IOrder extends Document {
   billingAddress?: IAddress | null;
   status: OrderStatus;
   paymentMethod: string;
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
+  razorpayOrderId?: string | null;
+  razorpayPaymentId?: string | null;
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
   notes?: string | null;
+  cancelledAt?: Date | null;
+  cancelReason?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -140,6 +142,8 @@ const OrderSchema = new Schema<IOrder>(
     trackingCarrier: { type: String, default: null },
     trackingNumber: { type: String, default: null },
     notes: { type: String, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: null },
   },
   { timestamps: true },
 );

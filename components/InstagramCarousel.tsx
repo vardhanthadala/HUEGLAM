@@ -55,10 +55,10 @@ export function InstagramCarousel({ posts }: { posts: InstagramItem[] }) {
                   alt={post.caption || "HUEGLAM on Instagram"}
                   fill
                   sizes="(min-width: 1024px) 25vw, 50vw"
-                  className="object-cover"
+                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
                 {/* Darken and show a camera glyph on hover, as on the live rail. */}
-                <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] opacity-0 transition-all duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
                   <svg
                     width="34"
                     height="34"

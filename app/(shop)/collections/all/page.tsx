@@ -14,10 +14,10 @@ export default async function AllProductsPage() {
   const products = await getPublishedProducts();
 
   return (
-    <div className="mx-auto max-w-[1200px] px-gutter py-10">
+    <div className="mx-auto max-w-[1200px] px-gutter py-10 animate-fade-in-up">
       {/* Promo banner. The live collection page leads with this instead of a
           breadcrumb, page title or product count. */}
-      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 bg-[linear-gradient(125deg,#f9f7f2,#fff2ee_99%)] px-6 py-12 text-center">
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 bg-[linear-gradient(125deg,#f9f7f2,#fff2ee_99%)] px-6 py-12 text-center shadow-sm">
         <p className="text-[1.0625rem] font-semibold tracking-[1.5px] uppercase text-ink">
           Your Daily Skin Care
         </p>

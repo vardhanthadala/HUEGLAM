@@ -79,7 +79,7 @@ function ReelTile({
   const thumb = product?.images[0]?.src ?? null;
 
   return (
-    <div className="relative aspect-9/16 overflow-hidden bg-ground-alt">
+    <div className="group relative aspect-9/16 overflow-hidden bg-ground-alt shadow-sm transition-all duration-500 hover:shadow-lg">
       <video
         ref={videoRef}
         poster={reel.poster}
@@ -88,7 +88,7 @@ function ReelTile({
         playsInline
         preload="none"
         aria-label={reel.alt}
-        className="size-full object-cover"
+        className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
       >
         <source src={reel.video} type={reel.type} />
       </video>
@@ -98,16 +98,22 @@ function ReelTile({
         type="button"
         onClick={onOpen}
         aria-label={"Play " + reel.alt}
-        className="absolute inset-0 cursor-pointer"
-      />
+        className="absolute inset-0 cursor-pointer flex items-center justify-center"
+      >
+        <span className="flex size-12 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      </button>
 
       {product && (
         <Link
           href={"/products/" + product.handle}
-          className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-8"
+          className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-3 pb-3 pt-10 transition-opacity hover:opacity-95"
         >
           {thumb && (
-            <span className="relative size-10 shrink-0 overflow-hidden rounded bg-white">
+            <span className="relative size-10 shrink-0 overflow-hidden rounded bg-white shadow">
               <Image src={thumb} alt="" fill sizes="40px" className="object-cover" />
             </span>
           )}

@@ -20,7 +20,7 @@ export function ProductCard({ product }: { product: ProductWithImages }) {
         {/* 2:3 portrait, the native ratio of the product photography. */}
         <Link
           href={"/products/" + product.handle}
-          className="relative block aspect-2/3 w-full"
+          className="relative block aspect-2/3 w-full overflow-hidden"
         >
           {primary && (
             <Image
@@ -28,7 +28,9 @@ export function ProductCard({ product }: { product: ProductWithImages }) {
               alt={primary.alt || product.title}
               fill
               sizes="(min-width: 1024px) 390px, (min-width: 640px) 50vw, 100vw"
-              className="object-cover transition-opacity duration-500 group-hover:opacity-0"
+              className={`object-cover transition-all duration-700 ease-out group-hover:scale-105 ${
+                hover ? "group-hover:opacity-0" : "group-hover:opacity-95"
+              }`}
             />
           )}
           {hover && (
@@ -38,7 +40,7 @@ export function ProductCard({ product }: { product: ProductWithImages }) {
               aria-hidden
               fill
               sizes="(min-width: 1024px) 390px, (min-width: 640px) 50vw, 100vw"
-              className="object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              className="object-cover opacity-0 transition-all duration-700 ease-out group-hover:scale-105 group-hover:opacity-100"
             />
           )}
         </Link>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { connectDB, mongoConfigured } from "@/lib/mongodb";
@@ -34,6 +35,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Enter your name").max(120),
   email: z.email("Enter a valid email").max(200),
+  phone: z.string().trim().regex(/^[0-9]{10}$/, "Enter a valid 10-digit mobile number").optional().or(z.literal("")),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
 
@@ -109,6 +111,7 @@ export async function customerRegisterAction(
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
+    phone: formData.get("phone") || undefined,
     password: formData.get("password"),
   });
   if (!parsed.success) {
@@ -126,6 +129,7 @@ export async function customerRegisterAction(
       email,
       passwordHash,
       name: parsed.data.name,
+      phone: parsed.data.phone || "",
     });
   } catch (error) {
     // The unique index on email is what actually prevents duplicates; checking
@@ -150,5 +154,7 @@ export async function customerRegisterAction(
 
 export async function customerLogoutAction() {
   await destroyCustomerSession();
+  revalidatePath("/");
   revalidatePath("/account");
+  redirect("/");
 }

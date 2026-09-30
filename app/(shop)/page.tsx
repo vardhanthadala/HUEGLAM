@@ -26,13 +26,13 @@ export default async function HomePage() {
       <Marquee phrases={marqueePhrases} />
 
       {/* Intro */}
-      <section className="mx-auto max-w-[1600px] px-gutter py-12">
+      <section className="mx-auto max-w-[1600px] px-gutter py-12 animate-fade-in-up">
         <div className="mx-auto max-w-[750px] text-center">
           <h2 className="h-section mb-3">Skincare For Every Shade Of Beautiful</h2>
           <p className="mb-5 text-[1rem] leading-6 text-body">
             our products treat your skin with the proper vitamins for every season so it&rsquo;s healthy year_round.
           </p>
-          <Link href="/collections/all" className="btn-theme">
+          <Link href="/collections/all" className="btn-theme shadow-sm transition-all hover:shadow-md">
             All Products
           </Link>
         </div>
@@ -40,7 +40,7 @@ export default async function HomePage() {
 
       {/* Product rail. Narrower container than the rest of the page, so the
           three cards land at ~370px wide as on the live site. */}
-      <section className="mx-auto max-w-[1200px] px-gutter pb-16">
+      <section className="mx-auto max-w-[1200px] px-gutter pb-16 animate-fade-in-up">
         <ProductCarousel products={products} />
       </section>
 

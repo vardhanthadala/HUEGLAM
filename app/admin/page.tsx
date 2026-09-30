@@ -12,6 +12,18 @@ import {
 import { listAdminProducts } from "@/lib/admin-products";
 import { getRecentOrders } from "@/lib/queries";
 import { formatINR } from "@/lib/money";
+import {
+  FiVolume2,
+  FiImage,
+  FiActivity,
+  FiVideo,
+  FiInstagram,
+  FiCheckCircle,
+  FiShoppingBag,
+  FiDollarSign,
+  FiTruck,
+  FiBox,
+} from "react-icons/fi";
 
 export const dynamic = "force-dynamic";
 
@@ -113,12 +125,7 @@ export default async function AdminHomePage() {
           href="/admin/orders"
           delta={change(last30.length, prior30.length)}
           muted={orders.length === 0}
-          icon={
-            <svg {...iconProps}>
-              <path d="M6.2 7.5h11.6l.9 12H5.3Z" strokeLinejoin="round" />
-              <path d="M9.3 7.5a2.7 2.7 0 0 1 5.4 0" strokeLinecap="round" />
-            </svg>
-          }
+          icon={<FiShoppingBag className="size-4" />}
         />
         <StatCard
           label="Revenue"
@@ -126,149 +133,153 @@ export default async function AdminHomePage() {
           href="/admin/orders"
           delta={change(revenue30, revenuePrior)}
           muted={revenue === 0}
-          icon={
-            <svg {...iconProps}>
-              <path d="M6 7h9M6 11h9M8 7c4 0 4 8 0 8h-2l7 5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          }
+          icon={<FiDollarSign className="size-4" />}
         />
         <StatCard
           label="Awaiting shipment"
           value={String(toShip)}
           href="/admin/orders"
           muted={toShip === 0}
-          icon={
-            <svg {...iconProps}>
-              <path d="M3 8h10v8H3zM13 10.5h4l3 3V16h-7z" strokeLinejoin="round" />
-              <circle cx="7" cy="17.5" r="1.4" />
-              <circle cx="16.5" cy="17.5" r="1.4" />
-            </svg>
-          }
+          icon={<FiTruck className="size-4" />}
         />
         <StatCard
           label="Products"
           value={String(products.length)}
           href="/admin/products"
           muted={products.length === 0}
-          icon={
-            <svg {...iconProps}>
-              <path d="m12 4 7.5 4.2v7.6L12 20l-7.5-4.2V8.2Z" strokeLinejoin="round" />
-              <path d="M4.5 8.2 12 12.4l7.5-4.2M12 12.4V20" />
-            </svg>
-          }
+          icon={<FiBox className="size-4" />}
         />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         {/* Recent orders */}
         <Panel
           title="Recent orders"
+          description="Latest purchases and order activity"
           action={
             <Link
               href="/admin/orders"
-              className="text-[0.8125rem] text-[#6b7280] transition-colors hover:text-ink"
+              className="text-xs font-medium text-ink underline underline-offset-4 hover:opacity-75"
             >
-              See all
+              See all orders &rarr;
             </Link>
           }
-          bodyClassName={recent.length === 0 ? "p-5" : ""}
+          bodyClassName={recent.length === 0 ? "p-5" : "p-0"}
         >
           {recent.length === 0 ? (
             <p className="py-8 text-center text-[0.8125rem] text-[#9aa0ab]">
               No orders yet.
             </p>
           ) : (
-            <table className="w-full text-left text-[0.875rem]">
-              <thead>
-                <tr className="border-b border-[#f1f2f6] text-[0.75rem] text-[#9aa0ab]">
-                  <th className="px-5 py-2.5 font-normal">Order</th>
-                  <th className="px-5 py-2.5 font-normal">Status</th>
-                  <th className="px-5 py-2.5 text-right font-normal">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-[#f6f7f9] last:border-0 transition-colors hover:bg-[#fbfcfd]"
-                  >
-                    <td className="px-5 py-3">
-                      <Link href={"/admin/orders/" + order.id} className="block">
-                        <span className="block text-ink">{order.orderNumber}</span>
-                        <span className="mt-0.5 block text-[0.75rem] text-[#9aa0ab]">
-                          {order.customerName} &middot; {order.city}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={
-                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.75rem] " +
-                          (isPaid(order.status)
-                            ? "bg-[#edf7f0] text-[#3f7a4f]"
-                            : "bg-[#f1f2f6] text-[#6b7280]")
-                        }
-                      >
-                        <span
-                          className={
-                            "size-1.5 rounded-full " +
-                            (isPaid(order.status) ? "bg-[#5a8a63]" : "bg-[#b6bcc6]")
-                          }
-                        />
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right text-ink">
-                      {formatINR(order.total ?? 0)}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line bg-ground-alt/40 text-[0.6875rem] uppercase tracking-wider text-ink-soft">
+                    <th className="px-5 py-3 font-medium">Order</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 text-right font-medium">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line/60">
+                  {recent.map((order) => {
+                    const isCancelled = order.status === "cancelled";
+                    const isPaidStatus = isPaid(order.status);
+                    return (
+                      <tr
+                        key={order.id}
+                        className="transition-colors hover:bg-ground-alt/50"
+                      >
+                        <td className="px-5 py-3.5">
+                          <Link href={"/admin/orders/" + order.id} className="group block">
+                            <span className="font-mono text-xs font-semibold text-ink group-hover:underline">
+                              {order.orderNumber}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-ink-soft">
+                              {order.customerName} {order.city ? `· ${order.city}` : ""}
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-medium uppercase tracking-wider " +
+                              (isCancelled
+                                ? "bg-red-50 text-red-700 border border-red-200"
+                                : isPaidStatus
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-ground-alt text-ink-soft border border-line")
+                            }
+                          >
+                            <span
+                              className={
+                                "size-1.5 rounded-full " +
+                                (isCancelled
+                                  ? "bg-red-500"
+                                  : isPaidStatus
+                                  ? "bg-emerald-500"
+                                  : "bg-ink-faint")
+                              }
+                            />
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-medium text-ink">
+                          {formatINR(order.total ?? 0)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
 
         {/* Low stock */}
         <Panel
-          title="Low stock"
-          description="Five or fewer left"
+          title="Low stock alerts"
+          description="Products with 5 or fewer units left"
           action={
             <Link
               href="/admin/products"
-              className="text-[0.8125rem] text-[#6b7280] transition-colors hover:text-ink"
+              className="text-xs font-medium text-ink underline underline-offset-4 hover:opacity-75"
             >
-              All
+              All products &rarr;
             </Link>
           }
         >
           {lowStock.length === 0 ? (
-            <p className="py-6 text-center text-[0.8125rem] text-[#9aa0ab]">
-              Nothing running low.
-            </p>
+            <div className="py-10 text-center">
+              <span className="flex size-10 mx-auto items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                <FiCheckCircle className="size-5" />
+              </span>
+              <p className="mt-2.5 text-xs font-semibold text-ink">Inventory healthy</p>
+              <p className="mt-0.5 text-xs text-ink-soft">No products currently running low.</p>
+            </div>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col divide-y divide-line/60">
               {lowStock.slice(0, 5).map((product) => (
-                <li key={product.id}>
+                <li key={product.id} className="py-2.5 first:pt-0 last:pb-0">
                   <Link
                     href={"/admin/products/" + product.id}
-                    className="flex items-center gap-3"
+                    className="flex items-center gap-3 group"
                   >
-                    <span className="relative size-9 shrink-0 overflow-hidden rounded-[9px] bg-[#f1f2f6]">
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-line bg-ground-alt">
                       {product.images[0] && (
                         <Image
                           src={product.images[0].src}
                           alt=""
                           fill
-                          sizes="36px"
+                          sizes="40px"
                           className="object-cover"
                         />
                       )}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink">
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink group-hover:underline">
                       {product.title}
                     </span>
-                    <span className="shrink-0 rounded-full bg-[#fdf1ee] px-2 py-0.5 text-[0.75rem] text-[#9c4d33]">
-                      {product.inventory}
+                    <span className="shrink-0 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                      {product.inventory} left
                     </span>
                   </Link>
                 </li>
@@ -279,7 +290,7 @@ export default async function AdminHomePage() {
       </div>
 
       {/* Content shortcuts */}
-      <Panel className="mt-4" title="Storefront content">
+      <Panel className="mt-6" title="Storefront content" description="Quick access to configure your homepage and marketing channels.">
         {products.length === 0 && orders.length === 0 && !process.env.MONGODB_URI ? (
           <EmptyState
             title="Nothing connected yet"
@@ -288,56 +299,78 @@ export default async function AdminHomePage() {
             <PrimaryLink href="/admin/products/new">Add product</PrimaryLink>
           </EmptyState>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 href: "/admin/content/announcements",
                 label: "Announcements",
-                hint: "Messages in the top bar",
+                hint: "Top marquee notification bar",
+                badge: "Top Bar",
+                icon: <FiVolume2 className="size-5 text-amber-600" />,
+                bg: "bg-amber-500/10",
               },
               {
                 href: "/admin/content/banners",
-                label: "Hero banners",
-                hint: "Homepage slideshow",
+                label: "Hero Banners",
+                hint: "Homepage visual hero carousel",
+                badge: "Hero Section",
+                icon: <FiImage className="size-5 text-indigo-600" />,
+                bg: "bg-indigo-500/10",
+              },
+              {
+                href: "/admin/content/marquee",
+                label: "Ticker Strip",
+                hint: "Moving USP perks & highlights",
+                badge: "USP Bar",
+                icon: <FiActivity className="size-5 text-emerald-600" />,
+                bg: "bg-emerald-500/10",
               },
               {
                 href: "/admin/content/reels",
-                label: "Reels",
-                hint: "Shoppable videos",
+                label: "Shoppable Reels",
+                hint: "Vertical video demo feeds",
+                badge: "Video",
+                icon: <FiVideo className="size-5 text-rose-600" />,
+                bg: "bg-rose-500/10",
               },
               {
                 href: "/admin/content/instagram",
-                label: "Instagram",
-                hint: "Follow rail tiles",
+                label: "Instagram Feed",
+                hint: "Social community grid showcase",
+                badge: "Community",
+                icon: <FiInstagram className="size-5 text-fuchsia-600" />,
+                bg: "bg-fuchsia-500/10",
               },
             ].map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="flex items-center justify-between gap-4 rounded-[10px] border border-[#ebedf1] px-4 py-3 transition-colors hover:border-[#dfe3ea] hover:bg-[#fbfcfd]"
-                >
-                  <span>
-                    <span className="block text-[0.875rem] text-ink">{item.label}</span>
-                    <span className="mt-0.5 block text-[0.8125rem] text-[#9aa0ab]">
-                      {item.hint}
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-line bg-ground p-4 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={`flex size-10 items-center justify-center rounded-lg ${item.bg}`}>
+                      {item.icon}
                     </span>
-                  </span>
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    className="shrink-0 text-[#c4c9d2]"
-                    aria-hidden="true"
-                  >
-                    <path d="m9 5 7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </Link>
-              </li>
+                    <span className="rounded-full bg-ground-alt px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wider text-ink-soft">
+                      {item.badge}
+                    </span>
+                  </div>
+                  <h3 className="mt-3.5 text-sm font-semibold text-ink group-hover:text-black">
+                    {item.label}
+                  </h3>
+                  <p className="mt-1 text-xs text-ink-soft line-clamp-2">
+                    {item.hint}
+                  </p>
+                </div>
+
+                <div className="mt-4 flex items-center gap-1.5 text-xs font-medium text-ink transition-transform duration-150 group-hover:translate-x-1">
+                  <span>Customize</span>
+                  <span>&rarr;</span>
+                </div>
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </Panel>
     </AdminShell>

@@ -92,6 +92,8 @@ export type StoreOrder = {
   trackingCarrier: string | null;
   trackingNumber: string | null;
   notes: string | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: StoreOrderItem[];

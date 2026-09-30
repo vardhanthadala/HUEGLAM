@@ -2,6 +2,7 @@ import "server-only";
 import { connectDB } from "./mongodb";
 import { Product } from "@/models/Product";
 import { Order, ORDER_STATUSES } from "@/models/Order";
+import { Customer } from "@/models/Customer";
 import type {
   ProductImage,
   ProductWithImages,
@@ -224,6 +225,8 @@ type LeanOrder = {
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
   notes?: string | null;
+  cancelledAt?: Date | null;
+  cancelReason?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
   items?: LeanOrderItem[];
@@ -300,6 +303,8 @@ function toOrder(row: LeanOrder): StoreOrder {
     trackingCarrier: row.trackingCarrier ?? null,
     trackingNumber: row.trackingNumber ?? null,
     notes: row.notes ?? null,
+    cancelledAt: row.cancelledAt ? new Date(row.cancelledAt) : null,
+    cancelReason: row.cancelReason ?? null,
     createdAt: row.createdAt ?? new Date(0),
     updatedAt: row.updatedAt ?? new Date(0),
     items: (row.items ?? []).map(toOrderItem),
@@ -368,3 +373,210 @@ export async function getOrderWithItems(orderNumber: string) {
     return null;
   }
 }
+
+export type AdminCustomer = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  totalOrders: number;
+  totalSpent: number;
+  createdAt: Date;
+  lastOrder?: {
+    orderNumber: string;
+    total: number;
+    status: string;
+    createdAt: Date;
+    itemCount: number;
+    itemsSummary: string;
+  } | null;
+};
+
+/**
+ * Fetch all registered customers for the admin panel, enriched with their
+ * delivery addresses and their latest order and purchase stats.
+ */
+export async function getAdminCustomers(): Promise<AdminCustomer[]> {
+  try {
+    await connectDB();
+    const customers = await Customer.find().sort({ createdAt: -1 }).lean();
+
+    // Pull latest order per email or customerId to ensure complete sync
+    const emails = customers.map((c) => c.email.toLowerCase());
+    const orders = await Order.find({ email: { $in: emails } })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const ordersByEmail = new Map<string, typeof orders>();
+    for (const o of orders) {
+      const email = o.email.toLowerCase();
+      const existing = ordersByEmail.get(email) ?? [];
+      existing.push(o);
+      ordersByEmail.set(email, existing);
+    }
+
+    return customers.map((c) => {
+      const custOrders = ordersByEmail.get(c.email.toLowerCase()) ?? [];
+      const latest = custOrders[0] ?? null;
+
+      // Calculate total paid spend if not stored directly
+      const paidOrders = custOrders.filter((o) =>
+        ["paid", "shipped", "delivered"].includes(o.status),
+      );
+      const computedSpent = paidOrders.reduce((acc, o) => acc + (o.total ?? 0), 0);
+      const computedCount = custOrders.length;
+
+      // Extract delivery address from latest order if not yet on customer profile
+      const addressLine1 = c.addressLine1 || latest?.addressLine1 || "";
+      const addressLine2 = c.addressLine2 || latest?.addressLine2 || "";
+      const city = c.city || latest?.city || "";
+      const state = c.state || latest?.state || "";
+      const pincode = c.pincode || latest?.pincode || "";
+      const country = c.country || latest?.country || "India";
+      const phone = c.phone || latest?.phone || "";
+      const name = c.name || latest?.customerName || "";
+
+      let lastOrder = null;
+      if (latest) {
+        const items = latest.items ?? [];
+        const itemsSummary = items
+          .slice(0, 2)
+          .map((i: { title: string; quantity: number }) => `${i.title} (x${i.quantity})`)
+          .join(", ") + (items.length > 2 ? ` +${items.length - 2} more` : "");
+
+        lastOrder = {
+          orderNumber: latest.orderNumber,
+          total: latest.total,
+          status: latest.status,
+          createdAt: new Date(latest.createdAt),
+          itemCount: items.reduce((n: number, i: { quantity: number }) => n + i.quantity, 0),
+          itemsSummary,
+        };
+      }
+
+      return {
+        id: String(c._id),
+        name,
+        email: c.email,
+        phone,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        totalOrders: c.totalOrders && c.totalOrders > 0 ? c.totalOrders : computedCount,
+        totalSpent: c.totalSpent && c.totalSpent > 0 ? c.totalSpent : computedSpent,
+        createdAt: new Date(c.createdAt),
+        lastOrder,
+      };
+    });
+  } catch (error) {
+    console.error("[queries] getAdminCustomers failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch a single customer's detailed profile and all their orders for the
+ * admin customer detail page.
+ */
+export async function getAdminCustomerById(id: string) {
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) return null;
+  try {
+    await connectDB();
+    const customer = await Customer.findById(id).lean();
+    if (!customer) return null;
+
+    // Fetch all orders placed with this email or customerId
+    const orders = await Order.find({
+      $or: [{ customerId: customer._id }, { email: customer.email.toLowerCase() }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formattedOrders = orders.map((o) => toOrder(o as unknown as LeanOrder));
+
+    const paidOrders = formattedOrders.filter((o) =>
+      ["paid", "shipped", "delivered"].includes(o.status),
+    );
+    const totalSpent = paidOrders.reduce((acc, o) => acc + o.total, 0);
+
+    // Merge latest address if not explicitly present
+    const latest = formattedOrders[0] ?? null;
+    const addressLine1 = customer.addressLine1 || latest?.addressLine1 || "";
+    const addressLine2 = customer.addressLine2 || latest?.addressLine2 || "";
+    const city = customer.city || latest?.city || "";
+    const state = customer.state || latest?.state || "";
+    const pincode = customer.pincode || latest?.pincode || "";
+    const country = customer.country || latest?.country || "India";
+    const phone = customer.phone || latest?.phone || "";
+    const name = customer.name || latest?.customerName || "";
+
+    return {
+      id: String(customer._id),
+      name,
+      email: customer.email,
+      phone,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      pincode,
+      country,
+      totalOrders: formattedOrders.length,
+      totalSpent,
+      createdAt: new Date(customer.createdAt),
+      orders: formattedOrders,
+    };
+  } catch (error) {
+    console.error("[queries] getAdminCustomerById failed:", error);
+    return null;
+  }
+}
+
+export type AdminCoupon = {
+  id: string;
+  code: string;
+  type: "percent" | "fixed";
+  value: number;
+  minSubtotal: number;
+  active: boolean;
+  usageLimit?: number | null;
+  usageCount: number;
+  expiresAt?: Date | null;
+  createdAt: Date;
+};
+
+/**
+ * Fetch all coupons for the admin panel.
+ */
+export async function getAdminCoupons(): Promise<AdminCoupon[]> {
+  try {
+    await connectDB();
+    const { Coupon } = await import("@/models/Coupon");
+    const coupons = await Coupon.find().sort({ createdAt: -1 }).lean();
+    return coupons.map((c) => ({
+      id: String(c._id),
+      code: c.code,
+      type: c.type as "percent" | "fixed",
+      value: c.value,
+      minSubtotal: c.minSubtotal ?? 0,
+      active: c.active ?? true,
+      usageLimit: c.usageLimit ?? null,
+      usageCount: c.usageCount ?? 0,
+      expiresAt: c.expiresAt ? new Date(c.expiresAt) : null,
+      createdAt: new Date(c.createdAt),
+    }));
+  } catch (error) {
+    console.error("[queries] getAdminCoupons failed:", error);
+    return [];
+  }
+}
+

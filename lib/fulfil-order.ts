@@ -79,6 +79,22 @@ export async function markOrderPaid(
     }
   }
 
+  // Update customer analytics (total orders count & lifetime spend)
+  if (claimed.customerId || claimed.email) {
+    try {
+      const { Customer } = await import("@/models/Customer");
+      const filter = claimed.customerId
+        ? { _id: claimed.customerId }
+        : { email: claimed.email.toLowerCase() };
+
+      await Customer.updateOne(filter, {
+        $inc: { totalOrders: 1, totalSpent: claimed.total },
+      });
+    } catch (error) {
+      console.error("[fulfil] customer metric update failed:", error);
+    }
+  }
+
   try {
     const detail = await getOrderWithItems(claimed.orderNumber);
     if (detail) await sendOrderConfirmation(detail.order, detail.items);

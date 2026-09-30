@@ -183,6 +183,12 @@ export default function CheckoutPage() {
           email: data.customer.email,
           firstName: f.firstName || (parts[0] ?? ""),
           lastName: f.lastName || parts.slice(1).join(" "),
+          phone: f.phone || data.customer.phone || "",
+          address: f.address || data.customer.addressLine1 || "",
+          apartment: f.apartment || data.customer.addressLine2 || "",
+          city: f.city || data.customer.city || "",
+          state: f.state && f.state !== "Telangana" ? f.state : data.customer.state || "Telangana",
+          pincode: f.pincode || data.customer.pincode || "",
         }));
       } catch {
         // Prefill is a convenience; checkout still works without it.
@@ -241,16 +247,28 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await created.json();
+      const data = await created.json().catch(() => ({}));
       if (!created.ok) throw new Error(data.error ?? "Could not start checkout.");
+
+      // Free orders (100% discount / free gift) bypass the payment gateway
+      if (data.free) {
+        clear();
+        router.push("/order/" + data.orderNumber);
+        return;
+      }
 
       const loaded = await loadRazorpay();
       if (!loaded || !window.Razorpay) {
         throw new Error("Could not reach the payment gateway. Check your connection.");
       }
 
+      const key = data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!key) {
+        throw new Error("Payment configuration error: Razorpay key is missing.");
+      }
+
       const checkout = new window.Razorpay({
-        key: data.keyId,
+        key,
         amount: data.amount,
         currency: data.currency,
         name: "HUEGLAM",

@@ -1,89 +1,69 @@
 import Link from "next/link";
 import Image from "next/image";
-import { logoutAction } from "@/app/admin/actions";
 import type { AdminSession } from "@/lib/auth";
+import { AdminSignOutButton } from "./AdminSignOutButton";
 
-/* ---------------- icons ---------------- */
+import {
+  FiHome,
+  FiUsers,
+  FiShoppingBag,
+  FiBox,
+  FiTag,
+  FiVolume2,
+  FiImage,
+  FiActivity,
+  FiVideo,
+  FiInstagram,
+  FiExternalLink,
+  FiLogOut,
+  FiUser,
+  FiMail,
+} from "react-icons/fi";
 
 const icon = "size-[17px] shrink-0";
 
 function IconHome() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M4 10.8 12 4.5l8 6.3V19a1 1 0 0 1-1 1h-4.2v-5.6H9.2V20H5a1 1 0 0 1-1-1Z" strokeLinejoin="round" />
-    </svg>
-  );
+  return <FiHome className={icon} />;
+}
+
+function IconUsers() {
+  return <FiUsers className={icon} />;
 }
 
 function IconOrders() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M6.2 7.5h11.6l.9 12H5.3Z" strokeLinejoin="round" />
-      <path d="M9.3 7.5a2.7 2.7 0 0 1 5.4 0" strokeLinecap="round" />
-    </svg>
-  );
+  return <FiShoppingBag className={icon} />;
 }
 
 function IconProducts() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="m12 4 7.5 4.2v7.6L12 20l-7.5-4.2V8.2Z" strokeLinejoin="round" />
-      <path d="M4.5 8.2 12 12.4l7.5-4.2M12 12.4V20" />
-    </svg>
-  );
+  return <FiBox className={icon} />;
+}
+
+function IconTag() {
+  return <FiTag className={icon} />;
 }
 
 function IconMegaphone() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M4.5 10.2v3.6h2.8l6.4 3.4V6.8l-6.4 3.4Z" strokeLinejoin="round" />
-      <path d="M17.6 9.4a3.6 3.6 0 0 1 0 5.2" strokeLinecap="round" />
-    </svg>
-  );
+  return <FiVolume2 className={icon} />;
 }
 
 function IconBanner() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
-      <path d="m4.5 15.5 4.2-3.4 3.4 2.5 2.6-1.7 3.8 2.6" strokeLinejoin="round" />
-    </svg>
-  );
+  return <FiImage className={icon} />;
 }
 
 function IconReel() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
-      <path d="M10.2 9.7v4.6l4-2.3Z" strokeLinejoin="round" />
-    </svg>
-  );
+  return <FiVideo className={icon} />;
 }
 
 function IconGrid() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-      <circle cx="12" cy="12" r="3.6" />
-      <circle cx="17" cy="7" r="0.9" fill="currentColor" stroke="none" />
-    </svg>
-  );
+  return <FiInstagram className={icon} />;
 }
 
 function IconSparkles() {
-  return (
-    <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.5-6.5-2 2m-7 7-2 2m0-11 2 2m7 7 2 2" strokeLinecap="round" />
-    </svg>
-  );
+  return <FiActivity className={icon} />;
 }
 
 function IconExternal() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <FiExternalLink className="size-3.5" />;
 }
 
 /* ---------------- nav ---------------- */
@@ -96,11 +76,15 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin", label: "Dashboard", Icon: IconHome },
       { href: "/admin/orders", label: "Orders", Icon: IconOrders },
+      { href: "/admin/customers", label: "Customers", Icon: IconUsers },
     ],
   },
   {
     label: "Catalogue",
-    items: [{ href: "/admin/products", label: "Products", Icon: IconProducts }],
+    items: [
+      { href: "/admin/products", label: "Products", Icon: IconProducts },
+      { href: "/admin/coupons", label: "Discounts", Icon: IconTag },
+    ],
   },
   {
     label: "Content",
@@ -188,14 +172,8 @@ export function AdminShell({
           ))}
         </nav>
 
-        <div className="p-3">
-          <Link
-            href="/"
-            className="flex items-center justify-between rounded-[9px] bg-[#f7f8fa] px-3 py-2.5 text-[0.8125rem] text-[#6b7280] transition-colors hover:text-ink"
-          >
-            View store
-            <IconExternal />
-          </Link>
+        <div className="border-t border-[#ebedf1] p-3">
+          <AdminSignOutButton />
         </div>
       </aside>
 
@@ -223,20 +201,30 @@ export function AdminShell({
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-full bg-[#f1f2f6] text-[0.6875rem] font-medium text-[#6b7280]">
-              {initials}
-            </span>
-            <span className="hidden text-[0.8125rem] text-[#6b7280] sm:inline">
-              {session.email}
-            </span>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="rounded-[9px] px-3 py-1.5 text-[0.8125rem] text-[#6b7280] transition-colors hover:bg-[#f1f2f6] hover:text-ink"
-              >
-                Sign out
-              </button>
-            </form>
+            {/* View Store Button in Navbar */}
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3e6eb] bg-white px-3 py-1.5 text-[0.8125rem] font-medium text-[#4b5563] transition-colors hover:border-[#cbd5e1] hover:bg-[#f8fafc] hover:text-ink shadow-2xs"
+            >
+              <span>View store</span>
+              <IconExternal />
+            </Link>
+
+            {/* User Profile Pill */}
+            <div className="flex items-center gap-2 rounded-full border border-[#ebedf1] bg-[#f7f8fa] py-1 pl-1 pr-3 text-[0.8125rem] text-ink transition-colors hover:border-[#d9dce2]">
+              <span className="flex size-7 items-center justify-center rounded-full bg-ink text-[0.6875rem] font-semibold tracking-wide text-white shadow-xs">
+                {initials}
+              </span>
+              <div className="hidden flex-col sm:flex">
+                <span className="text-[0.75rem] font-medium leading-none text-ink">
+                  {session.name || "Administrator"}
+                </span>
+                <span className="text-[0.6875rem] leading-none text-[#868d9d] mt-0.5">
+                  {session.email}
+                </span>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -323,19 +311,19 @@ export function StatCard({
   return (
     <Link
       href={href}
-      className="rounded-[14px] border border-[#ebedf1] bg-white px-5 py-4 shadow-[0_1px_3px_rgba(17,24,39,0.04)] transition-colors hover:border-[#dfe3ea]"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-[14px] border border-[#ebedf1] bg-white p-5 shadow-[0_1px_3px_rgba(17,24,39,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#cbd0d9] hover:shadow-md"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-7 items-center justify-center rounded-[8px] bg-[#f1f2f6] text-[#6b7280]">
+      <div className="flex items-center justify-between">
+        <span className="text-[0.8125rem] font-medium text-[#6b7280]">{label}</span>
+        <span className="flex size-8 items-center justify-center rounded-[8px] bg-[#f1f2f6] text-[#6b7280] transition-colors group-hover:bg-ink group-hover:text-white">
           {iconNode}
         </span>
-        <span className="text-[0.8125rem] text-[#6b7280]">{label}</span>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-2.5">
+      <div className="mt-4 flex flex-wrap items-baseline gap-2.5">
         <span
           className={
-            "text-[1.5rem] leading-none font-medium tracking-[-0.02em] " +
+            "text-[1.625rem] leading-none font-semibold tracking-[-0.03em] " +
             (muted ? "text-[#b6bcc6]" : "text-ink")
           }
         >
@@ -344,7 +332,7 @@ export function StatCard({
         {delta && (
           <span
             className={
-              "rounded-full px-2 py-0.5 text-[0.6875rem] " +
+              "rounded-full px-2 py-0.5 text-[0.6875rem] font-medium " +
               (delta.direction === "up"
                 ? "bg-[#edf7f0] text-[#3f7a4f]"
                 : "bg-[#fdf1ee] text-[#9c4d33]")

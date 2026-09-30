@@ -176,6 +176,50 @@ mark {
   }
 }
 
+/* Luxury entrance animations & smooth transitions */
+@keyframes hg-fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hg-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes hg-zoom-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: hg-fade-in-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: hg-fade-in 0.5s ease-out forwards;
+}
+
+.animate-zoom-in {
+  animation: hg-zoom-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
